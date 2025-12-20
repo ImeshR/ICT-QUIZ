@@ -5,8 +5,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
-import { BarChart3, Trophy, Users, CheckCircle, XCircle } from 'lucide-react';
+import { BarChart3, Trophy, Users, CheckCircle, XCircle, Medal } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface QuizSession {
   id: string;
@@ -20,6 +21,8 @@ interface AttemptResult {
   total_questions: number;
   completed_at: string | null;
   started_at: string;
+  ranking: number | null;
+  time_taken_seconds: number | null;
   students: {
     first_name: string;
     student_code: string;
@@ -68,14 +71,44 @@ export default function Results() {
 
   const loadResults = async (quizId: string) => {
     try {
+      // First, check if quiz deadline has passed and calculate rankings
+      const { data: quizData } = await supabase
+        .from('quiz_sessions')
+        .select('deadline')
+        .eq('id', quizId)
+        .single();
+
+      if (quizData && new Date(quizData.deadline) < new Date()) {
+        // Calculate rankings using the database function
+        try {
+          const { error: rankError } = await (supabase as any).rpc('calculate_quiz_rankings', {
+            quiz_session_uuid: quizId
+          });
+          if (rankError) console.error('Error calculating rankings:', rankError);
+        } catch (rpcError) {
+          console.error('RPC call failed, rankings may not be calculated:', rpcError);
+        }
+      }
+
+      // Load results with rankings
       const { data, error } = await supabase
         .from('quiz_attempts')
         .select('*, students(first_name, student_code)')
         .eq('quiz_session_id', quizId)
-        .order('score', { ascending: false });
+        .order('ranking', { ascending: true })
+        .order('score', { ascending: false })
+        .order('time_taken_seconds', { ascending: true });
 
       if (error) throw error;
-      setResults(data || []);
+      
+      // Map data to include ranking and time_taken_seconds with proper types
+      const mappedResults: AttemptResult[] = (data || []).map((r: any) => ({
+        ...r,
+        ranking: r.ranking || null,
+        time_taken_seconds: r.time_taken_seconds || null,
+      }));
+      
+      setResults(mappedResults);
     } catch (error) {
       console.error('Error loading results:', error);
       toast.error('Failed to load results');
@@ -220,22 +253,47 @@ export default function Results() {
                           <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Student</th>
                           <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Code</th>
                           <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Score</th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Time</th>
                           <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Status</th>
                           <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Completed</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {results.map((result, index) => (
-                          <tr key={result.id} className="hover:bg-muted/30 transition-colors">
+                        {results.map((result, index) => {
+                          const rank = result.ranking || index + 1;
+                          const isTopThree = rank <= 3 && result.completed_at;
+                          return (
+                          <tr key={result.id} className={cn(
+                            "hover:bg-muted/30 transition-colors",
+                            isTopThree && "bg-primary/5"
+                          )}>
                             <td className="px-6 py-4">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                                index === 0 ? 'bg-quiz-yellow text-foreground' :
-                                index === 1 ? 'bg-muted text-muted-foreground' :
-                                index === 2 ? 'bg-accent/30 text-accent' :
-                                'bg-muted/50 text-muted-foreground'
-                              }`}>
-                                {index + 1}
-                              </div>
+                              {isTopThree ? (
+                                <div className="flex items-center gap-2">
+                                  <div className={cn(
+                                    "w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg",
+                                    rank === 1 && "bg-quiz-yellow text-foreground shadow-lg",
+                                    rank === 2 && "bg-gray-300 text-foreground shadow-lg",
+                                    rank === 3 && "bg-orange-400 text-foreground shadow-lg"
+                                  )}>
+                                    {rank === 1 && <Medal className="w-6 h-6 text-yellow-600" />}
+                                    {rank === 2 && <Medal className="w-6 h-6 text-gray-600" />}
+                                    {rank === 3 && <Medal className="w-6 h-6 text-orange-600" />}
+                                  </div>
+                                  <span className={cn(
+                                    "font-bold text-lg",
+                                    rank === 1 && "text-quiz-yellow",
+                                    rank === 2 && "text-gray-500",
+                                    rank === 3 && "text-orange-500"
+                                  )}>
+                                    {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold bg-muted/50 text-muted-foreground">
+                                  {rank}
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 font-medium">{result.students?.first_name}</td>
                             <td className="px-6 py-4">
@@ -250,6 +308,11 @@ export default function Results() {
                               <span className="text-muted-foreground ml-2">
                                 ({Math.round((result.score / result.total_questions) * 100)}%)
                               </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {result.time_taken_seconds 
+                                ? `${Math.floor(result.time_taken_seconds / 60)}m ${result.time_taken_seconds % 60}s`
+                                : '-'}
                             </td>
                             <td className="px-6 py-4">
                               {result.completed_at ? (
@@ -270,7 +333,8 @@ export default function Results() {
                                 : '-'}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

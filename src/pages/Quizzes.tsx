@@ -75,6 +75,7 @@ export default function Quizzes() {
     const groupId = formData.get('groupId') as string;
     const deadline = formData.get('deadline') as string;
     const participantLimit = formData.get('participantLimit') as string;
+    const durationMinutes = formData.get('durationMinutes') as string;
 
     try {
       const { error } = await supabase.from('quiz_sessions').insert({
@@ -83,6 +84,7 @@ export default function Quizzes() {
         group_id: groupId,
         deadline: new Date(deadline).toISOString(),
         participant_limit: participantLimit ? parseInt(participantLimit) : null,
+        duration_minutes: durationMinutes ? parseInt(durationMinutes) : 30,
         teacher_id: user?.id,
         access_code: '', // Will be auto-generated
       });
@@ -182,6 +184,21 @@ export default function Quizzes() {
                     placeholder="Leave empty for unlimited"
                     min="1"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="durationMinutes">Quiz Duration (Minutes)</Label>
+                  <Input 
+                    id="durationMinutes" 
+                    name="durationMinutes" 
+                    type="number" 
+                    placeholder="e.g. 30"
+                    min="1"
+                    defaultValue="30"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Total time students have to complete the quiz
+                  </p>
                 </div>
                 <Button type="submit" className="w-full gradient-primary">Create Quiz</Button>
               </form>
