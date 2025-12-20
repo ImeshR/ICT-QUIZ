@@ -49,10 +49,14 @@ export default function Results() {
   }, [selectedQuiz]);
 
   const loadQuizzes = async () => {
+    if (!user) return;
+    
     try {
+      // Explicitly filter by teacher_id to ensure data isolation
       const { data, error } = await supabase
         .from('quiz_sessions')
         .select('id, title, deadline')
+        .eq('teacher_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

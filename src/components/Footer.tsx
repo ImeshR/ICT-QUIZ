@@ -34,7 +34,7 @@ export default function Footer({ transparent = false }: FooterProps) {
           "text-xs",
           transparent ? "text-primary-foreground/70" : "text-muted-foreground"
         )}>
-          © {CURRENT_YEAR} ICT Quiz. All rights reserved.
+          © {CURRENT_YEAR} ICT Quiz. All rights reserved. Made with 💜
         </div>
       </div>
     </footer>

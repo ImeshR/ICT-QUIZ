@@ -26,11 +26,17 @@ export default function Dashboard() {
   }, [user]);
 
   const loadStats = async () => {
+    if (!user) return;
+    
     try {
+      // RLS policies should automatically filter by teacher_id, but we'll be explicit for safety
       const [groupsRes, quizzesRes] = await Promise.all([
-        supabase.from('groups').select('id', { count: 'exact' }),
-        supabase.from('quiz_sessions').select('id', { count: 'exact' }),
+        supabase.from('groups').select('id', { count: 'exact' }).eq('teacher_id', user.id),
+        supabase.from('quiz_sessions').select('id', { count: 'exact' }).eq('teacher_id', user.id),
       ]);
+
+      if (groupsRes.error) throw groupsRes.error;
+      if (quizzesRes.error) throw quizzesRes.error;
 
       const groupIds = groupsRes.data?.map(g => g.id) || [];
       

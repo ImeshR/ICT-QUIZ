@@ -56,13 +56,21 @@ export default function Quizzes() {
   }, [editQuizOpen]);
 
   const loadData = async () => {
+    if (!user) return;
+    
     try {
+      // Explicitly filter by teacher_id to ensure data isolation (RLS should handle this, but being explicit)
       const [quizzesRes, groupsRes] = await Promise.all([
         supabase
           .from('quiz_sessions')
           .select('*, groups(name)')
+          .eq('teacher_id', user.id)
           .order('created_at', { ascending: false }),
-        supabase.from('groups').select('id, name').order('name'),
+        supabase
+          .from('groups')
+          .select('id, name')
+          .eq('teacher_id', user.id)
+          .order('name'),
       ]);
 
       if (quizzesRes.error) throw quizzesRes.error;
@@ -117,10 +125,16 @@ export default function Quizzes() {
       const { error } = await supabase.from('quiz_sessions').delete().eq('id', quizId);
       if (error) throw error;
 
+      // Optimistically update UI immediately
+      setQuizzes(prev => prev.filter(q => q.id !== quizId));
       toast.success('Quiz deleted');
-      loadData();
+      
+      // Reload data to ensure consistency
+      await loadData();
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete quiz');
+      // Reload on error to ensure state is correct
+      loadData();
     }
   };
 

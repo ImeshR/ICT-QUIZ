@@ -34,8 +34,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+    try {
+      await signOut();
+      // Small delay to ensure state is cleared
+      await new Promise(resolve => setTimeout(resolve, 200));
+      // Force full page reload to ensure clean state
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Force reload anyway to ensure clean state
+      window.location.href = '/';
+    }
   };
 
   return (

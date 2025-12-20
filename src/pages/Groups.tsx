@@ -41,10 +41,14 @@ export default function Groups() {
   }, [user]);
 
   const loadGroups = async () => {
+    if (!user) return;
+    
     try {
+      // Explicitly filter by teacher_id to ensure data isolation
       const { data: groupsData, error } = await supabase
         .from('groups')
         .select('*')
+        .eq('teacher_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
