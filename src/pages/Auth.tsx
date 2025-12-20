@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { GraduationCap, Mail, Lock, User } from 'lucide-react';
 
 export default function Auth() {
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
@@ -39,31 +39,31 @@ export default function Auth() {
     setLoading(false);
   };
 
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const fullName = formData.get('fullName') as string;
-
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      setLoading(false);
-      return;
-    }
-
-    const { error } = await signUp(email, password, fullName);
-    
-    if (error) {
-      toast.error(error.message || 'Failed to create account');
-    } else {
-      toast.success('Account created successfully!');
-      navigate('/dashboard');
-    }
-    setLoading(false);
-  };
+  // const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+  //   e.preventDefault();
+  //   setLoading(true);
+  //
+  //   const formData = new FormData(e.currentTarget);
+  //   const email = formData.get('email') as string;
+  //   const password = formData.get('password') as string;
+  //   const fullName = formData.get('fullName') as string;
+  //
+  //   if (password.length < 6) {
+  //     toast.error('Password must be at least 6 characters');
+  //     setLoading(false);
+  //     return;
+  //   }
+  //
+  //   const { error } = await signUp(email, password, fullName);
+  //
+  //   if (error) {
+  //     toast.error(error.message || 'Failed to create account');
+  //   } else {
+  //     toast.success('Account created successfully!');
+  //     navigate('/dashboard');
+  //   }
+  //   setLoading(false);
+  // };
 
   return (
     <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
@@ -81,9 +81,8 @@ export default function Auth() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="flex w-full mb-6 justify-center items-center">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
@@ -126,59 +125,59 @@ export default function Auth() {
               </form>
             </TabsContent>
             
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-name"
-                      name="fullName"
-                      type="text"
-                      placeholder="Your name"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-email"
-                      name="email"
-                      type="email"
-                      placeholder="teacher@school.lk"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      placeholder="••••••••"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full gradient-primary btn-bounce" 
-                  disabled={loading}
-                >
-                  {loading ? 'Creating account...' : 'Create Account'}
-                </Button>
-              </form>
-            </TabsContent>
+            {/*<TabsContent value="signup">*/}
+            {/*  <form onSubmit={handleSignUp} className="space-y-4">*/}
+            {/*    <div className="space-y-2">*/}
+            {/*      <Label htmlFor="signup-name">Full Name</Label>*/}
+            {/*      <div className="relative">*/}
+            {/*        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />*/}
+            {/*        <Input*/}
+            {/*          id="signup-name"*/}
+            {/*          name="fullName"*/}
+            {/*          type="text"*/}
+            {/*          placeholder="Your name"*/}
+            {/*          className="pl-10"*/}
+            {/*          required*/}
+            {/*        />*/}
+            {/*      </div>*/}
+            {/*    </div>*/}
+            {/*    <div className="space-y-2">*/}
+            {/*      <Label htmlFor="signup-email">Email</Label>*/}
+            {/*      <div className="relative">*/}
+            {/*        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />*/}
+            {/*        <Input*/}
+            {/*          id="signup-email"*/}
+            {/*          name="email"*/}
+            {/*          type="email"*/}
+            {/*          placeholder="teacher@school.lk"*/}
+            {/*          className="pl-10"*/}
+            {/*          required*/}
+            {/*        />*/}
+            {/*      </div>*/}
+            {/*    </div>*/}
+            {/*    <div className="space-y-2">*/}
+            {/*      <Label htmlFor="signup-password">Password</Label>*/}
+            {/*      <div className="relative">*/}
+            {/*        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />*/}
+            {/*        <Input*/}
+            {/*          id="signup-password"*/}
+            {/*          name="password"*/}
+            {/*          type="password"*/}
+            {/*          placeholder="••••••••"*/}
+            {/*          className="pl-10"*/}
+            {/*          required*/}
+            {/*        />*/}
+            {/*      </div>*/}
+            {/*    </div>*/}
+            {/*    <Button */}
+            {/*      type="submit" */}
+            {/*      className="w-full gradient-primary btn-bounce" */}
+            {/*      disabled={loading}*/}
+            {/*    >*/}
+            {/*      {loading ? 'Creating account...' : 'Create Account'}*/}
+            {/*    </Button>*/}
+            {/*  </form>*/}
+            {/*</TabsContent>*/}
           </Tabs>
         </CardContent>
       </Card>
