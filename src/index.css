@@ -1,0 +1,237 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Kahoot-inspired vibrant color palette */
+    --background: 250 20% 98%;
+    --foreground: 260 30% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 260 30% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 30% 15%;
+
+    /* Vibrant purple primary */
+    --primary: 270 80% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Cyan secondary */
+    --secondary: 180 70% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted purple tones */
+    --muted: 260 20% 94%;
+    --muted-foreground: 260 15% 45%;
+
+    /* Magenta accent */
+    --accent: 320 85% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 260 15% 88%;
+    --input: 260 15% 88%;
+    --ring: 270 80% 55%;
+
+    --radius: 1rem;
+
+    /* Quiz answer colors - Kahoot style */
+    --quiz-red: 0 80% 55%;
+    --quiz-blue: 210 90% 55%;
+    --quiz-yellow: 45 95% 55%;
+    --quiz-green: 140 70% 45%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(270 80% 55%), hsl(320 85% 55%));
+    --gradient-secondary: linear-gradient(135deg, hsl(180 70% 50%), hsl(200 80% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(270 80% 45%) 0%, hsl(320 85% 50%) 50%, hsl(350 80% 55%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(260 20% 98%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px -2px hsl(270 80% 55% / 0.15);
+    --shadow-md: 0 8px 24px -8px hsl(270 80% 55% / 0.2);
+    --shadow-lg: 0 16px 48px -12px hsl(270 80% 55% / 0.25);
+    --shadow-glow: 0 0 32px hsl(270 80% 55% / 0.3);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 260 25% 8%;
+    --foreground: 0 0% 98%;
+
+    --card: 260 25% 12%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 260 25% 12%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 270 80% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 180 70% 45%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 260 20% 18%;
+    --muted-foreground: 260 15% 65%;
+
+    --accent: 320 85% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 260 20% 20%;
+    --input: 260 20% 20%;
+    --ring: 270 80% 60%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Poppins', 'Noto Sans Sinhala', sans-serif;
+  }
+
+  /* Sinhala text styling */
+  .sinhala {
+    font-family: 'Noto Sans Sinhala', sans-serif;
+  }
+}
+
+@layer components {
+  .quiz-btn-red {
+    @apply bg-[hsl(var(--quiz-red))] text-white hover:brightness-110 active:scale-95 transition-all duration-150;
+  }
+
+  .quiz-btn-blue {
+    @apply bg-[hsl(var(--quiz-blue))] text-white hover:brightness-110 active:scale-95 transition-all duration-150;
+  }
+
+  .quiz-btn-yellow {
+    @apply bg-[hsl(var(--quiz-yellow))] text-foreground hover:brightness-110 active:scale-95 transition-all duration-150;
+  }
+
+  .quiz-btn-green {
+    @apply bg-[hsl(var(--quiz-green))] text-white hover:brightness-110 active:scale-95 transition-all duration-150;
+  }
+
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-secondary {
+    background: var(--gradient-secondary);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .card-elevated {
+    @apply bg-card rounded-2xl shadow-md border border-border/50;
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-bounce {
+    @apply transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+}
+
+@layer utilities {
+  .animate-bounce-in {
+    animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  .animate-pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px hsl(270 80% 55% / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px hsl(270 80% 55% / 0.5);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-5px);
+  }
+  40%, 80% {
+    transform: translateX(5px);
+  }
+}
