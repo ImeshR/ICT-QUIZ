@@ -69,7 +69,11 @@ export default function QuizPlay() {
 
       const { data: existingAttempt } = await supabase.from('quiz_attempts').select('*').eq('quiz_session_id', quizData.id).eq('student_id', studentData.id).maybeSingle();
       if (existingAttempt?.completed_at) { 
+        // Load questions to show score properly
+        const { data: questionsData } = await supabase.from('questions').select('*, answers(*)').eq('quiz_session_id', quizData.id).order('order_index');
+        setQuestions(questionsData || []);
         setScore(existingAttempt.score || 0); 
+        setTimeTaken((existingAttempt as any).time_taken_seconds || 0);
         setFinished(true); 
         setLoading(false); 
         return; 
@@ -144,6 +148,13 @@ export default function QuizPlay() {
   };
 
   const finishQuiz = async () => {
+    // Stop the timer immediately
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    setTimeRemaining(null);
+    
     const finalTimeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
     await supabase.from('quiz_attempts').update({ 
       score, 
@@ -199,7 +210,7 @@ export default function QuizPlay() {
   if (loading) return <div className="min-h-screen gradient-hero flex items-center justify-center text-primary-foreground text-xl">Loading...</div>;
 
   if (finished) {
-    const percentage = Math.round((score / questions.length) * 100);
+    const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
     return (
       <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
         <Card className="w-full max-w-md card-elevated animate-bounce-in text-center">
@@ -207,18 +218,32 @@ export default function QuizPlay() {
             <Trophy className="w-20 h-20 mx-auto text-quiz-yellow animate-pulse" />
             <h1 className="text-3xl font-bold">Quiz Complete!</h1>
             <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය අවසන්!</p>
-            <div className="text-5xl font-bold text-primary">{score}/{questions.length}</div>
-            <p className="text-lg">{percentage}% correct</p>
-            {percentage >= 80 && (
-              <p className="text-quiz-green font-bold text-xl">Excellent Work! 🎉</p>
+            {questions.length > 0 ? (
+              <>
+                <div className="text-5xl font-bold text-primary">{score}/{questions.length}</div>
+                <p className="text-lg">{percentage}% correct</p>
+                {percentage >= 80 && (
+                  <p className="text-quiz-green font-bold text-xl">Excellent Work! 🎉</p>
+                )}
+                {percentage >= 60 && percentage < 80 && (
+                  <p className="text-quiz-blue font-bold text-xl">Good Job! 👍</p>
+                )}
+                {percentage < 60 && (
+                  <p className="text-quiz-yellow font-bold text-xl">Keep Practicing! 💪</p>
+                )}
+                {timeTaken > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Time taken: {Math.floor(timeTaken / 60)}m {timeTaken % 60}s
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-lg text-muted-foreground">You have already completed this quiz!</p>
+                <p className="text-sm text-muted-foreground">Score: {score}</p>
+              </div>
             )}
-            {percentage >= 60 && percentage < 80 && (
-              <p className="text-quiz-blue font-bold text-xl">Good Job! 👍</p>
-            )}
-            <p className="text-sm text-muted-foreground">
-              Time taken: {Math.floor(timeTaken / 60)}m {timeTaken % 60}s
-            </p>
-            <Button onClick={() => navigate('/')} className="gradient-primary btn-bounce">Back to Home</Button>
+            <Button onClick={() => navigate('/')} className="gradient-primary btn-bounce w-full">Back to Home</Button>
           </CardContent>
         </Card>
       </div>
@@ -242,45 +267,90 @@ export default function QuizPlay() {
 
   return (
     <div className="min-h-screen gradient-hero flex flex-col p-4">
-      <div className="flex justify-between items-center mb-4 text-primary-foreground">
-        <span className="font-bold">{currentIndex + 1}/{questions.length}</span>
-        <div className="flex items-center gap-4">
-          {timeRemaining !== null && (
-            <div className={cn('flex items-center gap-2 font-bold text-2xl', getTimeColor())}>
-              <Clock className="w-5 h-5" />
-              {formatTime(timeRemaining)}
+      {/* Header with progress and timer */}
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-2 text-primary-foreground">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-lg">Question {currentIndex + 1} of {questions.length}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            {timeRemaining !== null && (
+              <div className={cn('flex items-center gap-2 font-bold text-xl px-3 py-1 rounded-lg bg-primary-foreground/10', getTimeColor())}>
+                <Clock className="w-4 h-4" />
+                {formatTime(timeRemaining)}
+              </div>
+            )}
+            <div className="px-3 py-1 rounded-lg bg-primary-foreground/10">
+              <span className="font-bold">Score: {score}</span>
             </div>
-          )}
-          <span className="font-bold">Score: {score}</span>
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div className="w-full bg-primary-foreground/20 rounded-full h-2">
+          <div 
+            className="bg-primary-foreground h-2 rounded-full transition-all duration-300"
+            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+          />
         </div>
       </div>
 
       <Card className="flex-1 card-elevated animate-slide-up">
         <CardContent className="h-full flex flex-col p-6">
-          {currentQ?.image_url && <img src={currentQ.image_url} alt="" className="max-h-48 object-contain mx-auto rounded-xl mb-4" />}
-          <h2 className="text-xl font-bold text-center mb-6 font-sinhala">{currentQ?.question_text}</h2>
+          {currentQ?.image_url && (
+            <div className="mb-4 flex justify-center">
+              <img 
+                src={currentQ.image_url} 
+                alt="Question" 
+                className="max-h-64 object-contain mx-auto rounded-xl shadow-lg" 
+              />
+            </div>
+          )}
+          <h2 className="text-2xl font-bold text-center mb-8 font-sinhala min-h-[60px] flex items-center justify-center">
+            {currentQ?.question_text}
+          </h2>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
             {currentQ?.answers.map((ans, i) => (
-              <button key={ans.id} onClick={() => handleAnswer(ans.id)} disabled={answered}
-                className={cn('p-6 rounded-2xl text-lg font-bold transition-all', colors[i % 4],
-                  selectedAnswers.includes(ans.id) && 'ring-4 ring-foreground scale-105',
-                  answered && ans.is_correct && 'ring-4 ring-quiz-green',
-                  answered && selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-50'
-                )}>
-                <span className="text-primary-foreground font-sinhala">{ans.answer_text}</span>
-                {answered && ans.is_correct && <CheckCircle className="inline ml-2 text-primary-foreground" />}
-                {answered && selectedAnswers.includes(ans.id) && !ans.is_correct && <XCircle className="inline ml-2" />}
+              <button 
+                key={ans.id} 
+                onClick={() => handleAnswer(ans.id)} 
+                disabled={answered}
+                className={cn(
+                  'p-6 rounded-2xl text-lg font-bold transition-all relative overflow-hidden',
+                  colors[i % 4],
+                  selectedAnswers.includes(ans.id) && !answered && 'ring-4 ring-foreground scale-105 shadow-lg',
+                  answered && ans.is_correct && 'ring-4 ring-quiz-green shadow-lg',
+                  answered && selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-50',
+                  answered && !selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-70',
+                  !answered && 'hover:scale-105 hover:shadow-lg'
+                )}
+              >
+                <span className="text-primary-foreground font-sinhala relative z-10">{ans.answer_text}</span>
+                {answered && ans.is_correct && (
+                  <CheckCircle className="absolute top-2 right-2 w-6 h-6 text-primary-foreground" />
+                )}
+                {answered && selectedAnswers.includes(ans.id) && !ans.is_correct && (
+                  <XCircle className="absolute top-2 right-2 w-6 h-6 text-destructive" />
+                )}
               </button>
             ))}
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 space-y-2">
             {!answered ? (
-              <Button onClick={submitAnswer} disabled={selectedAnswers.length === 0} className="w-full h-14 text-lg gradient-primary btn-bounce">Submit Answer</Button>
+              <Button 
+                onClick={submitAnswer} 
+                disabled={selectedAnswers.length === 0} 
+                className="w-full h-14 text-lg gradient-primary btn-bounce shadow-lg"
+              >
+                {selectedAnswers.length === 0 ? 'Select an answer' : 'Submit Answer'}
+              </Button>
             ) : (
-              <Button onClick={nextQuestion} className="w-full h-14 text-lg gradient-secondary btn-bounce">
-                {currentIndex < questions.length - 1 ? 'Next Question' : 'See Results'}
+              <Button 
+                onClick={nextQuestion} 
+                className="w-full h-14 text-lg gradient-secondary btn-bounce shadow-lg"
+              >
+                {currentIndex < questions.length - 1 ? 'Next Question →' : 'Finish Quiz ✓'}
               </Button>
             )}
           </div>
