@@ -329,42 +329,52 @@ export default function QuizEdit() {
 
                 {/* Answers */}
                 <div className="space-y-3">
-                  <Label>Answers (check correct ones)</Label>
+                  <Label>Answers (click to mark as correct)</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {question.answers.map((answer, aIndex) => (
                       <div
                         key={aIndex}
-                        className={`relative rounded-xl p-4 ${answerColors[aIndex]} transition-all ${
-                          answer.is_correct ? 'ring-2 ring-foreground ring-offset-2' : ''
+                        onClick={() => {
+                          if (question.question_type === 'single') {
+                            updateAnswer(qIndex, aIndex, { is_correct: true });
+                          } else {
+                            updateAnswer(qIndex, aIndex, { is_correct: !answer.is_correct });
+                          }
+                        }}
+                        className={`relative rounded-xl p-4 ${answerColors[aIndex]} transition-all cursor-pointer hover:scale-105 ${
+                          answer.is_correct ? 'ring-4 ring-foreground ring-offset-2 shadow-lg' : 'hover:ring-2 hover:ring-foreground/50'
                         }`}
                       >
-                        {question.question_type === 'single' ? (
-                          <RadioGroup
-                            value={answer.is_correct ? 'correct' : ''}
-                            onValueChange={() => updateAnswer(qIndex, aIndex, { is_correct: true })}
-                          >
-                            <div className="flex items-center gap-2">
-                              <RadioGroupItem value="correct" id={`q${qIndex}a${aIndex}`} />
+                        <div className="flex items-center justify-between mb-2">
+                          {question.question_type === 'single' ? (
+                            <div className="w-5 h-5 rounded-full border-2 border-primary-foreground flex items-center justify-center">
+                              {answer.is_correct && (
+                                <div className="w-3 h-3 rounded-full bg-primary-foreground" />
+                              )}
                             </div>
-                          </RadioGroup>
-                        ) : (
-                          <Checkbox
-                            checked={answer.is_correct}
-                            onCheckedChange={(checked) => 
-                              updateAnswer(qIndex, aIndex, { is_correct: checked as boolean })
-                            }
-                            className="absolute top-4 left-4"
-                          />
-                        )}
+                          ) : (
+                            <div className={`w-5 h-5 rounded border-2 border-primary-foreground flex items-center justify-center ${
+                              answer.is_correct ? 'bg-primary-foreground' : ''
+                            }`}>
+                              {answer.is_correct && (
+                                <Check className="w-4 h-4 text-inherit" />
+                              )}
+                            </div>
+                          )}
+                          {answer.is_correct && (
+                            <Check className="w-5 h-5 text-primary-foreground" />
+                          )}
+                        </div>
                         <Input
                           value={answer.answer_text}
-                          onChange={(e) => updateAnswer(qIndex, aIndex, { answer_text: e.target.value })}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            updateAnswer(qIndex, aIndex, { answer_text: e.target.value });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
                           placeholder={`Answer ${aIndex + 1}`}
-                          className="bg-transparent border-0 text-inherit placeholder:text-inherit/50 font-medium text-center pl-8"
+                          className="bg-transparent border-0 text-inherit placeholder:text-inherit/50 font-medium text-center"
                         />
-                        {answer.is_correct && (
-                          <Check className="absolute top-4 right-4 w-5 h-5" />
-                        )}
                       </div>
                     ))}
                   </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ interface QuizSession {
   description: string | null;
   deadline: string;
   participant_limit: number | null;
+  duration_seconds: number | null;
   is_active: boolean;
   access_code: string;
   group_id: string;
@@ -37,12 +38,22 @@ export default function Quizzes() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [newQuizOpen, setNewQuizOpen] = useState(false);
+  const [editQuizOpen, setEditQuizOpen] = useState(false);
+  const [editingQuiz, setEditingQuiz] = useState<QuizSession | null>(null);
+  const [extendDeadline, setExtendDeadline] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!editQuizOpen) {
+      setExtendDeadline(false);
+      return;
+    }
+  }, [editQuizOpen]);
 
   const loadData = async () => {
     try {
@@ -117,6 +128,75 @@ export default function Quizzes() {
     const link = `${window.location.origin}/quiz/${accessCode}`;
     navigator.clipboard.writeText(link);
     toast.success('Quiz link copied!');
+  };
+
+  const openEditDialog = async (quiz: QuizSession) => {
+    // Reload the quiz to get latest data
+    const { data: freshQuiz } = await supabase
+      .from('quiz_sessions')
+      .select('*')
+      .eq('id', quiz.id)
+      .single();
+    
+    if (freshQuiz) {
+      setEditingQuiz(freshQuiz as QuizSession);
+      // Check if deadline is in the past to suggest extending
+      const isPast = new Date(freshQuiz.deadline) < new Date();
+      setExtendDeadline(isPast);
+      setEditQuizOpen(true);
+    } else {
+      setEditingQuiz(quiz);
+      setEditQuizOpen(true);
+    }
+  };
+
+  const updateQuiz = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingQuiz) return;
+
+    const formData = new FormData(e.currentTarget);
+    const deadlineInput = formData.get('deadline') as string;
+    const participantLimit = formData.get('participantLimit') as string;
+    const durationSeconds = formData.get('durationSeconds') as string;
+    const extendDeadline = formData.get('extendDeadline') === 'on';
+
+    try {
+      let finalDeadline: string;
+
+      // If extend deadline is checked, extend from current time
+      if (extendDeadline) {
+        const hoursToAdd = formData.get('extendHours') ? parseInt(formData.get('extendHours') as string) : 0;
+        const minutesToAdd = formData.get('extendMinutes') ? parseInt(formData.get('extendMinutes') as string) : 0;
+        const now = new Date();
+        now.setHours(now.getHours() + hoursToAdd);
+        now.setMinutes(now.getMinutes() + minutesToAdd);
+        finalDeadline = now.toISOString();
+      } else {
+        // Use the deadline from the input
+        finalDeadline = new Date(deadlineInput).toISOString();
+      }
+
+      const updateData: any = {
+        deadline: finalDeadline,
+        participant_limit: participantLimit ? parseInt(participantLimit) : null,
+        duration_seconds: durationSeconds ? parseInt(durationSeconds) : null,
+      };
+
+      const { error } = await supabase
+        .from('quiz_sessions')
+        .update(updateData)
+        .eq('id', editingQuiz.id);
+
+      if (error) throw error;
+
+      toast.success('Quiz updated successfully!');
+      setEditQuizOpen(false);
+      setEditingQuiz(null);
+      setExtendDeadline(false);
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update quiz');
+    }
   };
 
   const isExpired = (deadline: string) => new Date(deadline) < new Date();
@@ -204,6 +284,122 @@ export default function Quizzes() {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Quiz Dialog */}
+          <Dialog open={editQuizOpen} onOpenChange={(open) => {
+            setEditQuizOpen(open);
+            if (!open) {
+              setEditingQuiz(null);
+              setExtendDeadline(false);
+            }
+          }}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Quiz Settings</DialogTitle>
+              </DialogHeader>
+              {editingQuiz && (
+                <form onSubmit={updateQuiz} key={editingQuiz.id} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-deadline">Deadline</Label>
+                    <Input 
+                      id="edit-deadline" 
+                      name="deadline" 
+                      type="datetime-local" 
+                      required 
+                      defaultValue={new Date(editingQuiz.deadline).toISOString().slice(0, 16)}
+                      min={new Date().toISOString().slice(0, 16)}
+                      disabled={extendDeadline}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-participantLimit">Participant Limit (Optional)</Label>
+                    <Input 
+                      id="edit-participantLimit" 
+                      name="participantLimit" 
+                      type="number" 
+                      placeholder="Leave empty for unlimited"
+                      min="1"
+                      defaultValue={editingQuiz.participant_limit || ''}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-durationSeconds">Quiz Duration (Seconds)</Label>
+                    <Input 
+                      id="edit-durationSeconds" 
+                      name="durationSeconds" 
+                      type="number" 
+                      placeholder="e.g. 1800 (30 minutes)"
+                      min="1"
+                      defaultValue={editingQuiz.duration_seconds || 1800}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Total time in seconds students have to complete the quiz
+                    </p>
+                  </div>
+                  <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="extendDeadline"
+                        name="extendDeadline"
+                        checked={extendDeadline}
+                        onChange={(e) => setExtendDeadline(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="extendDeadline" className="text-sm font-normal cursor-pointer">
+                        Extend deadline from current time
+                      </Label>
+                    </div>
+                    {extendDeadline && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="extendHours" className="text-xs">Hours</Label>
+                            <Input 
+                              id="extendHours" 
+                              name="extendHours" 
+                              type="number" 
+                              min="0"
+                              defaultValue="0"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="extendMinutes" className="text-xs">Minutes</Label>
+                            <Input 
+                              id="extendMinutes" 
+                              name="extendMinutes" 
+                              type="number" 
+                              min="0"
+                              max="59"
+                              defaultValue="0"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => {
+                        setEditQuizOpen(false);
+                        setEditingQuiz(null);
+                        setExtendDeadline(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="flex-1 gradient-primary">Update Quiz</Button>
+                  </div>
+                </form>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
 
         {groups.length === 0 && (
@@ -261,7 +457,7 @@ export default function Quizzes() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                     <div className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
                       {format(new Date(quiz.deadline), 'MMM d, yyyy h:mm a')}
@@ -270,6 +466,12 @@ export default function Quizzes() {
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
                         Limit: {quiz.participant_limit}
+                      </div>
+                    )}
+                    {quiz.duration_seconds && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        Duration: {Math.floor(quiz.duration_seconds / 60)}m
                       </div>
                     )}
                   </div>
@@ -295,6 +497,15 @@ export default function Quizzes() {
                         Edit Questions
                       </Button>
                     </Link>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="hover:bg-primary/10"
+                      onClick={() => openEditDialog(quiz)}
+                      title="Edit Quiz Settings"
+                    >
+                      <Clock className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
