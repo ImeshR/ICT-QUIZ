@@ -36,12 +36,22 @@ export default function QuizPlay() {
 
   // Timer effect
   useEffect(() => {
-    if (timeRemaining === null || finished || loading) return;
+    if (timeRemaining === null || finished || loading) {
+      // Clear timer if finished or loading
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
 
     timerIntervalRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev === null || prev <= 0) {
-          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
           handleTimeUp();
           return 0;
         }
@@ -51,7 +61,10 @@ export default function QuizPlay() {
     }, 1000);
 
     return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
     };
   }, [timeRemaining, finished, loading]);
 
@@ -69,10 +82,11 @@ export default function QuizPlay() {
 
       const { data: existingAttempt } = await supabase.from('quiz_attempts').select('*').eq('quiz_session_id', quizData.id).eq('student_id', studentData.id).maybeSingle();
       if (existingAttempt?.completed_at) { 
+        setScore(existingAttempt.score || 0); 
+        setAttempt(existingAttempt);
         // Load questions to show score properly
         const { data: questionsData } = await supabase.from('questions').select('*, answers(*)').eq('quiz_session_id', quizData.id).order('order_index');
         setQuestions(questionsData || []);
-        setScore(existingAttempt.score || 0); 
         setTimeTaken((existingAttempt as any).time_taken_seconds || 0);
         setFinished(true); 
         setLoading(false); 
@@ -148,12 +162,11 @@ export default function QuizPlay() {
   };
 
   const finishQuiz = async () => {
-    // Stop the timer immediately
+    // Stop timer immediately
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
-    setTimeRemaining(null);
     
     const finalTimeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
     await supabase.from('quiz_attempts').update({ 
@@ -161,7 +174,9 @@ export default function QuizPlay() {
       completed_at: new Date().toISOString(),
       time_taken_seconds: finalTimeTaken
     }).eq('id', attempt.id);
+    
     setFinished(true);
+    setTimeRemaining(null); // Clear timer
     triggerConfetti();
   };
 
@@ -211,39 +226,72 @@ export default function QuizPlay() {
 
   if (finished) {
     const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+    const isAlreadyCompleted = attempt?.completed_at && new Date(attempt.completed_at).getTime() < Date.now() - 5000; // Completed more than 5 seconds ago
+    
     return (
       <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
         <Card className="w-full max-w-md card-elevated animate-bounce-in text-center">
           <CardContent className="pt-8 pb-8 space-y-6">
-            <Trophy className="w-20 h-20 mx-auto text-quiz-yellow animate-pulse" />
-            <h1 className="text-3xl font-bold">Quiz Complete!</h1>
-            <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය අවසන්!</p>
-            {questions.length > 0 ? (
+            {isAlreadyCompleted ? (
               <>
-                <div className="text-5xl font-bold text-primary">{score}/{questions.length}</div>
-                <p className="text-lg">{percentage}% correct</p>
-                {percentage >= 80 && (
-                  <p className="text-quiz-green font-bold text-xl">Excellent Work! 🎉</p>
-                )}
-                {percentage >= 60 && percentage < 80 && (
-                  <p className="text-quiz-blue font-bold text-xl">Good Job! 👍</p>
-                )}
-                {percentage < 60 && (
-                  <p className="text-quiz-yellow font-bold text-xl">Keep Practicing! 💪</p>
-                )}
-                {timeTaken > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Time taken: {Math.floor(timeTaken / 60)}m {timeTaken % 60}s
-                  </p>
-                )}
+                <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
+                  <CheckCircle className="w-12 h-12 text-muted-foreground" />
+                </div>
+                <h1 className="text-3xl font-bold">Quiz Already Completed</h1>
+                <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය දැනටමත් අවසන් කර ඇත</p>
+                <div className="p-4 bg-muted/50 rounded-xl">
+                  <p className="text-sm text-muted-foreground mb-2">You have already completed this quiz.</p>
+                  <p className="text-sm text-muted-foreground">Your previous results:</p>
+                </div>
               </>
             ) : (
-              <div className="space-y-2">
-                <p className="text-lg text-muted-foreground">You have already completed this quiz!</p>
-                <p className="text-sm text-muted-foreground">Score: {score}</p>
-              </div>
+              <>
+                <Trophy className="w-20 h-20 mx-auto text-quiz-yellow animate-pulse" />
+                <h1 className="text-3xl font-bold">Quiz Complete!</h1>
+                <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය අවසන්!</p>
+              </>
             )}
-            <Button onClick={() => navigate('/')} className="gradient-primary btn-bounce w-full">Back to Home</Button>
+            
+            <div className="space-y-4">
+              <div className="text-5xl font-bold text-primary">{score}/{questions.length}</div>
+              <div className="flex items-center justify-center gap-2">
+                <div className={cn(
+                  "w-3 h-3 rounded-full",
+                  percentage >= 80 ? "bg-quiz-green" :
+                  percentage >= 60 ? "bg-quiz-blue" :
+                  percentage >= 40 ? "bg-quiz-yellow" :
+                  "bg-destructive"
+                )} />
+                <p className="text-lg font-semibold">{percentage}% correct</p>
+              </div>
+              
+              {percentage >= 80 && (
+                <p className="text-quiz-green font-bold text-xl animate-pulse">Excellent Work! 🎉</p>
+              )}
+              {percentage >= 60 && percentage < 80 && (
+                <p className="text-quiz-blue font-bold text-xl">Good Job! 👍</p>
+              )}
+              {percentage < 60 && percentage >= 40 && (
+                <p className="text-quiz-yellow font-bold text-xl">Keep Practicing! 💪</p>
+              )}
+              {percentage < 40 && (
+                <p className="text-muted-foreground font-semibold">You can do better next time! 📚</p>
+              )}
+              
+              {timeTaken > 0 && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>Time taken: {Math.floor(timeTaken / 60)}m {timeTaken % 60}s</span>
+                </div>
+              )}
+            </div>
+            
+            <Button 
+              onClick={() => navigate('/')} 
+              className="w-full gradient-primary btn-bounce h-12 text-lg"
+            >
+              Back to Home
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -275,72 +323,75 @@ export default function QuizPlay() {
           </div>
           <div className="flex items-center gap-4">
             {timeRemaining !== null && (
-              <div className={cn('flex items-center gap-2 font-bold text-xl px-3 py-1 rounded-lg bg-primary-foreground/10', getTimeColor())}>
+              <div className={cn('flex items-center gap-2 font-bold text-xl px-3 py-1.5 rounded-lg bg-primary/20', getTimeColor())}>
                 <Clock className="w-4 h-4" />
                 {formatTime(timeRemaining)}
               </div>
             )}
-            <div className="px-3 py-1 rounded-lg bg-primary-foreground/10">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/20">
+              <Trophy className="w-4 h-4" />
               <span className="font-bold">Score: {score}</span>
             </div>
           </div>
         </div>
         {/* Progress bar */}
-        <div className="w-full bg-primary-foreground/20 rounded-full h-2">
+        <div className="w-full h-2 bg-primary/20 rounded-full overflow-hidden">
           <div 
-            className="bg-primary-foreground h-2 rounded-full transition-all duration-300"
+            className="h-full bg-primary transition-all duration-300"
             style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
           />
         </div>
       </div>
 
       <Card className="flex-1 card-elevated animate-slide-up">
-        <CardContent className="h-full flex flex-col p-6">
+        <CardContent className="h-full flex flex-col p-6 md:p-8">
           {currentQ?.image_url && (
-            <div className="mb-4 flex justify-center">
+            <div className="mb-6 flex justify-center">
               <img 
                 src={currentQ.image_url} 
                 alt="Question" 
-                className="max-h-64 object-contain mx-auto rounded-xl shadow-lg" 
+                className="max-h-64 md:max-h-80 object-contain mx-auto rounded-xl shadow-lg" 
               />
             </div>
           )}
-          <h2 className="text-2xl font-bold text-center mb-8 font-sinhala min-h-[60px] flex items-center justify-center">
+          
+          <h2 className="text-xl md:text-2xl font-bold text-center mb-8 font-sinhala min-h-[3rem] flex items-center justify-center">
             {currentQ?.question_text}
           </h2>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 mb-6">
             {currentQ?.answers.map((ans, i) => (
               <button 
                 key={ans.id} 
                 onClick={() => handleAnswer(ans.id)} 
                 disabled={answered}
                 className={cn(
-                  'p-6 rounded-2xl text-lg font-bold transition-all relative overflow-hidden',
+                  'relative p-6 rounded-2xl text-lg font-bold transition-all duration-200 min-h-[80px] flex items-center justify-center',
                   colors[i % 4],
-                  selectedAnswers.includes(ans.id) && !answered && 'ring-4 ring-foreground scale-105 shadow-lg',
-                  answered && ans.is_correct && 'ring-4 ring-quiz-green shadow-lg',
-                  answered && selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-50',
-                  answered && !selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-70',
-                  !answered && 'hover:scale-105 hover:shadow-lg'
+                  selectedAnswers.includes(ans.id) && !answered && 'ring-4 ring-foreground scale-105 shadow-xl',
+                  answered && ans.is_correct && 'ring-4 ring-quiz-green shadow-xl',
+                  answered && selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-60',
+                  answered && !selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-80',
+                  !answered && 'hover:scale-105 hover:shadow-lg',
+                  answered && 'cursor-not-allowed'
                 )}
               >
-                <span className="text-primary-foreground font-sinhala relative z-10">{ans.answer_text}</span>
+                <span className="text-primary-foreground font-sinhala text-center">{ans.answer_text}</span>
                 {answered && ans.is_correct && (
                   <CheckCircle className="absolute top-2 right-2 w-6 h-6 text-primary-foreground" />
                 )}
                 {answered && selectedAnswers.includes(ans.id) && !ans.is_correct && (
-                  <XCircle className="absolute top-2 right-2 w-6 h-6 text-destructive" />
+                  <XCircle className="absolute top-2 right-2 w-6 h-6 text-primary-foreground" />
                 )}
               </button>
             ))}
           </div>
 
-          <div className="mt-6 space-y-2">
+          <div className="mt-auto">
             {!answered ? (
               <Button 
                 onClick={submitAnswer} 
-                disabled={selectedAnswers.length === 0} 
+                disabled={selectedAnswers.length === 0 || finished} 
                 className="w-full h-14 text-lg gradient-primary btn-bounce shadow-lg"
               >
                 {selectedAnswers.length === 0 ? 'Select an answer' : 'Submit Answer'}
@@ -349,6 +400,7 @@ export default function QuizPlay() {
               <Button 
                 onClick={nextQuestion} 
                 className="w-full h-14 text-lg gradient-secondary btn-bounce shadow-lg"
+                disabled={finished}
               >
                 {currentIndex < questions.length - 1 ? 'Next Question →' : 'Finish Quiz ✓'}
               </Button>
