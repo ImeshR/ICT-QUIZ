@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { GraduationCap, Play, Users } from 'lucide-react';
+import Footer from '@/components/Footer';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -104,6 +105,8 @@ export default function Index() {
           </CardContent>
         </Card>
       </main>
+      
+      <Footer transparent />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import Footer from '@/components/Footer';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -150,10 +151,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-[60px] lg:pt-0 min-h-screen">
-        <div className="p-4 lg:p-8">
+      <main className="lg:pl-64 pt-[60px] lg:pt-0 min-h-screen flex flex-col">
+        <div className="p-4 lg:p-8 flex-1">
           {children}
         </div>
+        <Footer />
       </main>
     </div>
   );

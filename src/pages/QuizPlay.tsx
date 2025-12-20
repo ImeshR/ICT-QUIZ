@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { CheckCircle, XCircle, Trophy, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import confetti from 'canvas-confetti';
+import Footer from '@/components/Footer';
 
 interface Answer { id: string; answer_text: string; is_correct: boolean; }
 interface Question { id: string; question_text: string; question_type: 'single' | 'multiple'; image_url: string | null; answers: Answer[]; }
@@ -252,77 +253,80 @@ export default function QuizPlay() {
     const isAlreadyCompleted = attempt?.completed_at && new Date(attempt.completed_at).getTime() < Date.now() - 5000; // Completed more than 5 seconds ago
     
     return (
-      <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
-        <Card className="w-full max-w-md card-elevated animate-bounce-in text-center">
-          <CardContent className="pt-8 pb-8 space-y-6">
-            {isAlreadyCompleted ? (
-              <>
-                <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
-                  <CheckCircle className="w-12 h-12 text-muted-foreground" />
+      <div className="min-h-screen gradient-hero flex flex-col">
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md card-elevated animate-bounce-in text-center">
+            <CardContent className="pt-8 pb-8 space-y-6">
+              {isAlreadyCompleted ? (
+                <>
+                  <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
+                    <CheckCircle className="w-12 h-12 text-muted-foreground" />
+                  </div>
+                  <h1 className="text-3xl font-bold">Quiz Already Completed</h1>
+                  <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය දැනටමත් අවසන් කර ඇත</p>
+                  <div className="p-4 bg-muted/50 rounded-xl">
+                    <p className="text-sm text-muted-foreground mb-2">You have already completed this quiz.</p>
+                    <p className="text-sm text-muted-foreground">Your previous results:</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Trophy className="w-20 h-20 mx-auto text-quiz-yellow animate-pulse" />
+                  <h1 className="text-3xl font-bold">Quiz Complete!</h1>
+                  <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය අවසන්!</p>
+                </>
+              )}
+              
+              <div className="space-y-4">
+                <div className="text-5xl font-bold text-primary">{score}/{questions.length}</div>
+                <div className="flex items-center justify-center gap-2">
+                  <div className={cn(
+                    "w-3 h-3 rounded-full",
+                    percentage >= 80 ? "bg-quiz-green" :
+                    percentage >= 60 ? "bg-quiz-blue" :
+                    percentage >= 40 ? "bg-quiz-yellow" :
+                    "bg-destructive"
+                  )} />
+                  <p className="text-lg font-semibold">{percentage}% correct</p>
                 </div>
-                <h1 className="text-3xl font-bold">Quiz Already Completed</h1>
-                <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය දැනටමත් අවසන් කර ඇත</p>
-                <div className="p-4 bg-muted/50 rounded-xl">
-                  <p className="text-sm text-muted-foreground mb-2">You have already completed this quiz.</p>
-                  <p className="text-sm text-muted-foreground">Your previous results:</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <Trophy className="w-20 h-20 mx-auto text-quiz-yellow animate-pulse" />
-                <h1 className="text-3xl font-bold">Quiz Complete!</h1>
-                <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය අවසන්!</p>
-              </>
-            )}
-            
-            <div className="space-y-4">
-              <div className="text-5xl font-bold text-primary">{score}/{questions.length}</div>
-              <div className="flex items-center justify-center gap-2">
-                <div className={cn(
-                  "w-3 h-3 rounded-full",
-                  percentage >= 80 ? "bg-quiz-green" :
-                  percentage >= 60 ? "bg-quiz-blue" :
-                  percentage >= 40 ? "bg-quiz-yellow" :
-                  "bg-destructive"
-                )} />
-                <p className="text-lg font-semibold">{percentage}% correct</p>
+                
+                {percentage >= 80 && (
+                  <p className="text-quiz-green font-bold text-xl animate-pulse">Excellent Work! 🎉</p>
+                )}
+                {percentage >= 60 && percentage < 80 && (
+                  <p className="text-quiz-blue font-bold text-xl">Good Job! 👍</p>
+                )}
+                {percentage < 60 && percentage >= 40 && (
+                  <p className="text-quiz-yellow font-bold text-xl">Keep Practicing! 💪</p>
+                )}
+                {percentage < 40 && (
+                  <p className="text-muted-foreground font-semibold">You can do better next time! 📚</p>
+                )}
+                
+                {timeTaken > 0 && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    <span>Time taken: {Math.floor(timeTaken / 60)}m {timeTaken % 60}s</span>
+                  </div>
+                )}
+                {timeTaken === 0 && attempt?.completed_at && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    <span>Time taken: {Math.floor(((attempt as any).time_taken_seconds || 0) / 60)}m {((attempt as any).time_taken_seconds || 0) % 60}s</span>
+                  </div>
+                )}
               </div>
               
-              {percentage >= 80 && (
-                <p className="text-quiz-green font-bold text-xl animate-pulse">Excellent Work! 🎉</p>
-              )}
-              {percentage >= 60 && percentage < 80 && (
-                <p className="text-quiz-blue font-bold text-xl">Good Job! 👍</p>
-              )}
-              {percentage < 60 && percentage >= 40 && (
-                <p className="text-quiz-yellow font-bold text-xl">Keep Practicing! 💪</p>
-              )}
-              {percentage < 40 && (
-                <p className="text-muted-foreground font-semibold">You can do better next time! 📚</p>
-              )}
-              
-              {timeTaken > 0 && (
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>Time taken: {Math.floor(timeTaken / 60)}m {timeTaken % 60}s</span>
-                </div>
-              )}
-              {timeTaken === 0 && attempt?.completed_at && (
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>Time taken: {Math.floor(((attempt as any).time_taken_seconds || 0) / 60)}m {((attempt as any).time_taken_seconds || 0) % 60}s</span>
-                </div>
-              )}
-            </div>
-            
-            <Button 
-              onClick={() => navigate('/')} 
-              className="w-full gradient-primary btn-bounce h-12 text-lg"
-            >
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
+              <Button 
+                onClick={() => navigate('/')} 
+                className="w-full gradient-primary btn-bounce h-12 text-lg"
+              >
+                Back to Home
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        <Footer transparent />
       </div>
     );
   }
@@ -343,9 +347,10 @@ export default function QuizPlay() {
   };
 
   return (
-    <div className="min-h-screen gradient-hero flex flex-col p-4">
-      {/* Header with progress and timer */}
-      <div className="mb-4">
+    <div className="min-h-screen gradient-hero flex flex-col">
+      <div className="flex-1 p-4">
+        {/* Header with progress and timer */}
+        <div className="mb-4">
         <div className="flex justify-between items-center mb-2 text-primary-foreground">
           <div className="flex items-center gap-2">
             <span className="font-bold text-lg">Question {currentIndex + 1} of {questions.length}</span>
@@ -441,6 +446,8 @@ export default function QuizPlay() {
           </div>
         </CardContent>
       </Card>
+      </div>
+      <Footer transparent />
     </div>
   );
 }
