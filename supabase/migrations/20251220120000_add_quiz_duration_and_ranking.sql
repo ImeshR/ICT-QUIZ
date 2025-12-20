@@ -1,6 +1,6 @@
--- Add duration_minutes field to quiz_sessions table
+-- Add duration_seconds field to quiz_sessions table
 ALTER TABLE public.quiz_sessions 
-ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 30;
+ADD COLUMN IF NOT EXISTS duration_seconds INTEGER DEFAULT 1800;
 
 -- Add time_taken_seconds field to quiz_attempts for ranking
 ALTER TABLE public.quiz_attempts 

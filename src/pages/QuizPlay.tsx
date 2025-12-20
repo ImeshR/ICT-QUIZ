@@ -92,9 +92,8 @@ export default function QuizPlay() {
       }
 
       // Initialize timer
-      const durationMinutes = (quizData as any).duration_minutes || 30;
-      const totalSeconds = durationMinutes * 60;
-      setTimeRemaining(totalSeconds);
+      const durationSeconds = (quizData as any).duration_seconds || 1800;
+      setTimeRemaining(durationSeconds);
     } catch (error) { console.error(error); toast.error('Error loading quiz'); }
     finally { setLoading(false); }
   };
@@ -233,8 +232,9 @@ export default function QuizPlay() {
   };
 
   const getTimeColor = () => {
-    if (timeRemaining === null) return '';
-    const percentage = (timeRemaining / ((quiz?.duration_minutes || 30) * 60)) * 100;
+    if (timeRemaining === null || !quiz) return '';
+    const totalDuration = (quiz as any).duration_seconds || 1800;
+    const percentage = (timeRemaining / totalDuration) * 100;
     if (percentage <= 20) return 'text-destructive animate-pulse';
     if (percentage <= 40) return 'text-quiz-yellow';
     return 'text-primary-foreground';
