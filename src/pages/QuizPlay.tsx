@@ -55,9 +55,15 @@ export default function QuizPlay() {
           handleTimeUp();
           return 0;
         }
-        return prev - 1;
+        const newRemaining = prev - 1;
+        // Calculate time taken based on duration - remaining time
+        if (quiz) {
+          const durationSeconds = (quiz as any).duration_seconds || 1800;
+          const calculatedTime = durationSeconds - newRemaining;
+          setTimeTaken(Math.max(0, calculatedTime));
+        }
+        return newRemaining;
       });
-      setTimeTaken(Math.floor((Date.now() - startTimeRef.current) / 1000));
     }, 1000);
 
     return () => {
@@ -168,13 +174,30 @@ export default function QuizPlay() {
       timerIntervalRef.current = null;
     }
     
-    const finalTimeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
+    // Calculate time taken accurately
+    // If timer is still running, use duration - remaining time
+    // Otherwise use elapsed time
+    let finalTimeTaken: number;
+    if (timeRemaining !== null && quiz) {
+      const durationSeconds = (quiz as any).duration_seconds || 1800;
+      finalTimeTaken = durationSeconds - timeRemaining;
+    } else {
+      // Fallback to elapsed time if timer was already stopped
+      finalTimeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
+    }
+    
+    // Ensure time taken is not negative and is accurate
+    finalTimeTaken = Math.max(0, finalTimeTaken);
+    
+    const completedAt = new Date().toISOString();
+    
     await supabase.from('quiz_attempts').update({ 
       score, 
-      completed_at: new Date().toISOString(),
+      completed_at: completedAt,
       time_taken_seconds: finalTimeTaken
     }).eq('id', attempt.id);
     
+    setTimeTaken(finalTimeTaken);
     setFinished(true);
     setTimeRemaining(null); // Clear timer
     triggerConfetti();
@@ -284,6 +307,12 @@ export default function QuizPlay() {
                   <span>Time taken: {Math.floor(timeTaken / 60)}m {timeTaken % 60}s</span>
                 </div>
               )}
+              {timeTaken === 0 && attempt?.completed_at && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>Time taken: {Math.floor(((attempt as any).time_taken_seconds || 0) / 60)}m {((attempt as any).time_taken_seconds || 0) % 60}s</span>
+                </div>
+              )}
             </div>
             
             <Button 
@@ -368,13 +397,17 @@ export default function QuizPlay() {
                 className={cn(
                   'relative p-6 rounded-2xl text-lg font-bold transition-all duration-200 min-h-[80px] flex items-center justify-center',
                   colors[i % 4],
-                  selectedAnswers.includes(ans.id) && !answered && 'ring-4 ring-foreground scale-105 shadow-xl',
+                  selectedAnswers.includes(ans.id) && !answered && 'ring-4 ring-foreground shadow-xl',
                   answered && ans.is_correct && 'ring-4 ring-quiz-green shadow-xl',
                   answered && selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-60',
                   answered && !selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-80',
-                  !answered && 'hover:scale-105 hover:shadow-lg',
+                  !answered && 'hover:brightness-110 hover:shadow-lg active:scale-[0.98]',
                   answered && 'cursor-not-allowed'
                 )}
+                style={{
+                  transform: selectedAnswers.includes(ans.id) && !answered ? 'scale(1.02)' : 'scale(1)',
+                  zIndex: selectedAnswers.includes(ans.id) && !answered ? 10 : 1
+                }}
               >
                 <span className="text-primary-foreground font-sinhala text-center">{ans.answer_text}</span>
                 {answered && ans.is_correct && (
