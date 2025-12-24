@@ -57,3 +57,4 @@ CREATE POLICY "Teachers can view attempts for their quizzes"
     AND quiz_sessions.teacher_id = auth.uid()
   ));
 
+

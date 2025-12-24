@@ -24,7 +24,7 @@ export default function QuizPlay() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
-  const [answered, setAnswered] = useState(false);
+  const [savedQuestionIds, setSavedQuestionIds] = useState<Set<string>>(new Set());
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -89,7 +89,11 @@ export default function QuizPlay() {
 
       const { data: existingAttempt } = await supabase.from('quiz_attempts').select('*').eq('quiz_session_id', quizData.id).eq('student_id', studentData.id).maybeSingle();
       if (existingAttempt?.completed_at) { 
-        setScore(existingAttempt.score || 0); 
+        // Always use the saved score from database for completed quizzes
+        const savedScore = existingAttempt.score !== null && existingAttempt.score !== undefined 
+          ? existingAttempt.score 
+          : 0;
+        setScore(savedScore); 
         setAttempt(existingAttempt);
         // Load questions to show score properly
         const { data: questionsData } = await supabase.from('questions').select('*, answers(*)').eq('quiz_session_id', quizData.id).order('order_index');
@@ -106,6 +110,59 @@ export default function QuizPlay() {
       if (existingAttempt) { 
         setAttempt(existingAttempt);
         startTimeRef.current = new Date(existingAttempt.started_at).getTime();
+        
+        // Use saved score from database if available, otherwise recalculate
+        if (existingAttempt.score !== null && existingAttempt.score !== undefined) {
+          setScore(existingAttempt.score);
+        }
+        
+        // Load existing answers to mark questions as saved
+        const { data: existingAnswers } = await supabase
+          .from('student_answers')
+          .select('question_id, answer_id')
+          .eq('attempt_id', existingAttempt.id);
+        
+        if (existingAnswers && questionsData) {
+          const savedIds = new Set(existingAnswers.map(a => a.question_id));
+          setSavedQuestionIds(savedIds);
+          
+          // Group answers by question
+          const questionAnswers = new Map<string, string[]>();
+          existingAnswers.forEach(sa => {
+            if (!questionAnswers.has(sa.question_id)) {
+              questionAnswers.set(sa.question_id, []);
+            }
+            questionAnswers.get(sa.question_id)?.push(sa.answer_id);
+          });
+          
+          // Only recalculate score if not already saved in database
+          if (existingAttempt.score === null || existingAttempt.score === undefined) {
+            let currentScore = 0;
+            questionsData.forEach(q => {
+              const userAnswerIds = questionAnswers.get(q.id) || [];
+              if (userAnswerIds.length > 0) {
+                const correctIds = q.answers.filter(a => a.is_correct).map(a => a.id);
+                const isCorrect = q.question_type === 'single'
+                  ? correctIds.includes(userAnswerIds[0])
+                  : correctIds.length === userAnswerIds.length && correctIds.every(id => userAnswerIds.includes(id));
+                if (isCorrect) currentScore++;
+              }
+            });
+            
+            setScore(currentScore);
+            
+            // Update score in database
+            await supabase.from('quiz_attempts')
+              .update({ score: currentScore })
+              .eq('id', existingAttempt.id);
+          }
+          
+          // Load selected answers for current question if already answered
+          const currentQ = questionsData[0];
+          if (currentQ && questionAnswers.has(currentQ.id)) {
+            setSelectedAnswers(questionAnswers.get(currentQ.id) || []);
+          }
+        }
       } else {
         const { data: newAttempt } = await supabase.from('quiz_attempts').insert({ 
           quiz_session_id: quizData.id, 
@@ -125,50 +182,134 @@ export default function QuizPlay() {
 
   const handleTimeUp = async () => {
     toast.error('Time is up! Submitting your quiz...');
-    // Auto-submit current answer if not answered
-    if (!answered && selectedAnswers.length > 0 && attempt) {
-      const q = questions[currentIndex];
-      if (q) {
-        const correctIds = q.answers.filter(a => a.is_correct).map(a => a.id);
-        const isCorrect = q.question_type === 'single' 
-          ? correctIds.includes(selectedAnswers[0])
-          : correctIds.length === selectedAnswers.length && correctIds.every(id => selectedAnswers.includes(id));
-        if (isCorrect) setScore(s => s + 1);
-        await supabase.from('student_answers').insert(selectedAnswers.map(aid => ({ 
-          attempt_id: attempt.id, 
-          question_id: q.id, 
-          answer_id: aid, 
-          is_correct: q.answers.find(a => a.id === aid)?.is_correct || false 
-        })));
-      }
+    // Auto-save current answer if selected
+    if (selectedAnswers.length > 0 && attempt) {
+      await saveAnswer();
     }
     // Finish quiz
     await finishQuiz();
   };
 
   const handleAnswer = (answerId: string) => {
-    if (answered) return;
     const q = questions[currentIndex];
-    if (q.question_type === 'single') setSelectedAnswers([answerId]);
-    else setSelectedAnswers(prev => prev.includes(answerId) ? prev.filter(id => id !== answerId) : [...prev, answerId]);
+    if (q.question_type === 'single') {
+      setSelectedAnswers([answerId]);
+    } else {
+      setSelectedAnswers(prev => prev.includes(answerId) ? prev.filter(id => id !== answerId) : [...prev, answerId]);
+    }
   };
 
-  const submitAnswer = async () => {
-    if (selectedAnswers.length === 0 || answered) return;
-    setAnswered(true);
+  const saveAnswer = async () => {
+    if (selectedAnswers.length === 0 || !attempt) return;
 
     const q = questions[currentIndex];
+    if (!q) return;
+
+    // Skip if already saved for this question
+    if (savedQuestionIds.has(q.id)) return;
+
+    // Calculate if answer is correct
     const correctIds = q.answers.filter(a => a.is_correct).map(a => a.id);
     const isCorrect = q.question_type === 'single' 
       ? correctIds.includes(selectedAnswers[0])
       : correctIds.length === selectedAnswers.length && correctIds.every(id => selectedAnswers.includes(id));
 
-    if (isCorrect) setScore(s => s + 1);
+    // Update score if correct
+    let newScore = score;
+    if (isCorrect) {
+      newScore = score + 1;
+      setScore(newScore);
+    }
 
-    await supabase.from('student_answers').insert(selectedAnswers.map(aid => ({ attempt_id: attempt.id, question_id: q.id, answer_id: aid, is_correct: q.answers.find(a => a.id === aid)?.is_correct || false })));
+    // Save answer to database
+    await supabase.from('student_answers').insert(
+      selectedAnswers.map(aid => ({ 
+        attempt_id: attempt.id, 
+        question_id: q.id, 
+        answer_id: aid, 
+        is_correct: q.answers.find(a => a.id === aid)?.is_correct || false 
+      }))
+    );
+
+    // Update score in database immediately
+    const { error: scoreError } = await supabase.from('quiz_attempts')
+      .update({ score: newScore })
+      .eq('id', attempt.id);
+    
+    if (scoreError) {
+      console.error('Error updating score:', scoreError);
+    } else {
+      console.log('Answer saved. Question:', q.id, 'Correct:', isCorrect, 'New score:', newScore);
+    }
+
+    // Mark this question as saved
+    setSavedQuestionIds(prev => new Set(prev).add(q.id));
   };
 
   const finishQuiz = async () => {
+    // Save last answer if not already saved
+    let finalScore = score;
+    if (selectedAnswers.length > 0 && attempt) {
+      const q = questions[currentIndex];
+      if (q && !savedQuestionIds.has(q.id)) {
+        // Calculate if last answer is correct
+        const correctIds = q.answers.filter(a => a.is_correct).map(a => a.id);
+        const isCorrect = q.question_type === 'single' 
+          ? correctIds.includes(selectedAnswers[0])
+          : correctIds.length === selectedAnswers.length && correctIds.every(id => selectedAnswers.includes(id));
+        
+        // Update score if correct
+        if (isCorrect) {
+          finalScore = score + 1;
+          setScore(finalScore);
+        }
+        
+        // Save answer to database
+        await supabase.from('student_answers').insert(
+          selectedAnswers.map(aid => ({ 
+            attempt_id: attempt.id, 
+            question_id: q.id, 
+            answer_id: aid, 
+            is_correct: q.answers.find(a => a.id === aid)?.is_correct || false 
+          }))
+        );
+        
+        // Mark as saved
+        setSavedQuestionIds(prev => new Set(prev).add(q.id));
+      }
+    }
+    
+    // Recalculate score from all saved answers to ensure accuracy
+    const { data: allAnswers } = await supabase
+      .from('student_answers')
+      .select('question_id, answer_id')
+      .eq('attempt_id', attempt.id);
+    
+    if (allAnswers && questions.length > 0) {
+      const questionAnswers = new Map<string, string[]>();
+      allAnswers.forEach(sa => {
+        if (!questionAnswers.has(sa.question_id)) {
+          questionAnswers.set(sa.question_id, []);
+        }
+        questionAnswers.get(sa.question_id)?.push(sa.answer_id);
+      });
+      
+      let calculatedScore = 0;
+      questions.forEach(q => {
+        const userAnswerIds = questionAnswers.get(q.id) || [];
+        if (userAnswerIds.length > 0) {
+          const correctIds = q.answers.filter(a => a.is_correct).map(a => a.id);
+          const isCorrect = q.question_type === 'single'
+            ? correctIds.includes(userAnswerIds[0])
+            : correctIds.length === userAnswerIds.length && correctIds.every(id => userAnswerIds.includes(id));
+          if (isCorrect) calculatedScore++;
+        }
+      });
+      
+      finalScore = calculatedScore;
+      setScore(finalScore);
+    }
+    
     // Stop timer immediately
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -192,11 +333,27 @@ export default function QuizPlay() {
     
     const completedAt = new Date().toISOString();
     
-    await supabase.from('quiz_attempts').update({ 
-      score, 
+    // Save final score to database
+    const { error, data: updatedAttempt } = await supabase.from('quiz_attempts').update({ 
+      score: finalScore, 
       completed_at: completedAt,
       time_taken_seconds: finalTimeTaken
-    }).eq('id', attempt.id);
+    }).eq('id', attempt.id).select().single();
+    
+    if (error) {
+      console.error('Error updating quiz attempt:', error);
+      toast.error('Error saving quiz results');
+    } else {
+      // Verify the score was saved correctly
+      console.log('Quiz completed with score:', finalScore, 'Saved score:', updatedAttempt?.score);
+      if (updatedAttempt && updatedAttempt.score !== finalScore) {
+        console.warn('Score mismatch! Calculated:', finalScore, 'Saved:', updatedAttempt.score);
+        // Retry saving with correct score
+        await supabase.from('quiz_attempts').update({ 
+          score: finalScore
+        }).eq('id', attempt.id);
+      }
+    }
     
     setTimeTaken(finalTimeTaken);
     setFinished(true);
@@ -205,11 +362,34 @@ export default function QuizPlay() {
   };
 
   const nextQuestion = async () => {
+    // Save current answer before moving to next question
+    if (selectedAnswers.length > 0 && attempt) {
+      await saveAnswer();
+    }
+
     if (currentIndex < questions.length - 1) { 
-      setCurrentIndex(i => i + 1); 
-      setSelectedAnswers([]); 
-      setAnswered(false); 
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      
+      // Load existing answer for next question if it was already answered
+      const nextQuestion = questions[nextIndex];
+      if (nextQuestion && savedQuestionIds.has(nextQuestion.id)) {
+        const { data: existingAnswers } = await supabase
+          .from('student_answers')
+          .select('answer_id')
+          .eq('attempt_id', attempt.id)
+          .eq('question_id', nextQuestion.id);
+        
+        if (existingAnswers && existingAnswers.length > 0) {
+          setSelectedAnswers(existingAnswers.map(a => a.answer_id));
+        } else {
+          setSelectedAnswers([]);
+        }
+      } else {
+        setSelectedAnswers([]);
+      }
     } else {
+      // If this is the last question, finish the quiz
       await finishQuiz();
     }
   };
@@ -398,51 +578,34 @@ export default function QuizPlay() {
               <button 
                 key={ans.id} 
                 onClick={() => handleAnswer(ans.id)} 
-                disabled={answered}
                 className={cn(
                   'relative p-6 rounded-2xl text-lg font-bold transition-all duration-200 min-h-[80px] flex items-center justify-center',
                   colors[i % 4],
-                  selectedAnswers.includes(ans.id) && !answered && 'ring-4 ring-foreground shadow-xl',
-                  answered && ans.is_correct && 'ring-4 ring-quiz-green shadow-xl',
-                  answered && selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-60',
-                  answered && !selectedAnswers.includes(ans.id) && !ans.is_correct && 'opacity-80',
-                  !answered && 'hover:brightness-110 hover:shadow-lg active:scale-[0.98]',
-                  answered && 'cursor-not-allowed'
+                  selectedAnswers.includes(ans.id) && 'ring-4 ring-foreground shadow-xl',
+                  'hover:brightness-110 hover:shadow-lg active:scale-[0.98]'
                 )}
                 style={{
-                  transform: selectedAnswers.includes(ans.id) && !answered ? 'scale(1.02)' : 'scale(1)',
-                  zIndex: selectedAnswers.includes(ans.id) && !answered ? 10 : 1
+                  transform: selectedAnswers.includes(ans.id) ? 'scale(1.02)' : 'scale(1)',
+                  zIndex: selectedAnswers.includes(ans.id) ? 10 : 1
                 }}
               >
                 <span className="text-primary-foreground font-sinhala text-center">{ans.answer_text}</span>
-                {answered && ans.is_correct && (
-                  <CheckCircle className="absolute top-2 right-2 w-6 h-6 text-primary-foreground" />
-                )}
-                {answered && selectedAnswers.includes(ans.id) && !ans.is_correct && (
-                  <XCircle className="absolute top-2 right-2 w-6 h-6 text-primary-foreground" />
-                )}
               </button>
             ))}
           </div>
 
           <div className="mt-auto">
-            {!answered ? (
-              <Button 
-                onClick={submitAnswer} 
-                disabled={selectedAnswers.length === 0 || finished} 
-                className="w-full h-14 text-lg gradient-primary btn-bounce shadow-lg"
-              >
-                {selectedAnswers.length === 0 ? 'Select an answer' : 'Submit Answer'}
-              </Button>
-            ) : (
-              <Button 
-                onClick={nextQuestion} 
-                className="w-full h-14 text-lg gradient-secondary btn-bounce shadow-lg"
-                disabled={finished}
-              >
-                {currentIndex < questions.length - 1 ? 'Next Question →' : 'Finish Quiz ✓'}
-              </Button>
-            )}
+            <Button 
+              onClick={nextQuestion} 
+              disabled={selectedAnswers.length === 0 || finished} 
+              className="w-full h-14 text-lg gradient-primary btn-bounce shadow-lg"
+            >
+              {selectedAnswers.length === 0 
+                ? 'Select an answer' 
+                : currentIndex < questions.length - 1 
+                  ? 'Next Question →' 
+                  : 'Finish Quiz ✓'}
+            </Button>
           </div>
         </CardContent>
       </Card>
