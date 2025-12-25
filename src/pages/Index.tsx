@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { GraduationCap, Play, Users } from 'lucide-react';
+import { Play, Users } from 'lucide-react';
 import Footer from '@/components/Footer';
 
 export default function Index() {
@@ -59,10 +59,12 @@ export default function Index() {
     <div className="min-h-screen gradient-hero flex flex-col">
       <header className="p-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
-            <GraduationCap className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-xl text-primary-foreground">ICT Quiz</span>
+          {/*<img */}
+          {/*  src="/quizioo-logo.png" */}
+          {/*  alt="Quizioo" */}
+          {/*  className="w-500 h-10 rounded-xl object-contain shadow-glow"*/}
+          {/*/>*/}
+          <span className="font-bold text-2xl text-primary-foreground">Quizioo</span>
         </div>
         <Button variant="secondary" onClick={() => navigate('/auth')} className="btn-bounce">
           <Users className="w-4 h-4 mr-2" />
@@ -73,8 +75,13 @@ export default function Index() {
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md card-elevated animate-bounce-in">
           <CardContent className="pt-8 pb-8 text-center space-y-6">
-            <div className="mx-auto w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center shadow-glow animate-pulse-scale">
-              <Play className="w-10 h-10 text-primary-foreground ml-1" />
+            <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center  animate-pulse-scale">
+              {/*<Play className="w-10 h-10 text-primary-foreground ml-1" />*/}
+              <img
+                src="/quizioo-logo.png"
+                alt="Quizioo"
+                className="w-80 h-80 rounded-xl object-contain max-w-none"
+              />
             </div>
             
             <div>

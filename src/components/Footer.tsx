@@ -1,4 +1,3 @@
-import { GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const VERSION = '1.0.0';
@@ -18,13 +17,15 @@ export default function Footer({ transparent = false }: FooterProps) {
     )}>
       <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-2 text-center">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-            <GraduationCap className="w-4 h-4 text-primary-foreground" />
-          </div>
+          {/*<img */}
+          {/*  src="/quizioo-logo.png" */}
+          {/*  alt="Quizioo" */}
+          {/*  className="w-8 h-8 rounded-lg object-contain"*/}
+          {/*/>*/}
           <span className={cn(
             "font-bold text-sm",
             transparent ? "text-primary-foreground" : ""
-          )}>ICT Quiz</span>
+          )}>Quizioo</span>
           <span className={cn(
             "text-xs",
             transparent ? "text-primary-foreground/80" : "text-muted-foreground"
@@ -34,7 +35,7 @@ export default function Footer({ transparent = false }: FooterProps) {
           "text-xs",
           transparent ? "text-primary-foreground/70" : "text-muted-foreground"
         )}>
-          © {CURRENT_YEAR} ICT Quiz. All rights reserved. Made with 💜
+          © {CURRENT_YEAR} Quizioo. All rights reserved. Made with 💜
         </div>
       </div>
     </footer>

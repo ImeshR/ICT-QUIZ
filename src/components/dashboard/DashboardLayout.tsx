@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { 
-  GraduationCap, 
   LayoutDashboard, 
   Users, 
   FileQuestion, 
@@ -53,10 +52,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg">ICT Quiz</span>
+            <img 
+              src="/quizioo-logo.png" 
+              alt="Quizioo" 
+              className="w-10 h-10 rounded-xl object-contain"
+            />
+            <span className="font-bold text-lg">Quizioo</span>
           </Link>
           <Button 
             variant="ghost" 
@@ -114,14 +115,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex-col">
-        <div className="p-6">
-          <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
-              <GraduationCap className="w-6 h-6 text-primary-foreground" />
-            </div>
+        <div>
+          <Link to="/dashboard" className="flex items-center justify-center">
+            <img 
+              src="/quizioo-logo.png" 
+              alt="Quizioo" 
+              className="w-40 h-auto rounded-xl"
+            />
             <div>
-              <span className="font-bold text-xl">ICT Quiz</span>
-              <span className="block text-xs text-muted-foreground font-sinhala">තොරතුරු තාක්ෂණය</span>
+              {/*<span className="font-bold text-xl">Quizioo</span>*/}
+              {/*<span className="block text-xs text-muted-foreground font-sinhala">ප්‍රශ්නාවලි</span>*/}
             </div>
           </Link>
         </div>

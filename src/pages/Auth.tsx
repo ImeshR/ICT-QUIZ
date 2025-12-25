@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { GraduationCap, Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock, User } from 'lucide-react';
 import Footer from '@/components/Footer';
 
 export default function Auth() {
@@ -70,12 +70,17 @@ export default function Auth() {
     <div className="min-h-screen gradient-hero flex flex-col">
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md card-elevated animate-bounce-in">
-          <CardHeader className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center shadow-glow">
-              <GraduationCap className="w-8 h-8 text-primary-foreground" />
+          <CardHeader className="text-center space-y-4 pt-8 pb-8">
+            <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center  animate-pulse-scale">
+              {/*<Play className="w-10 h-10 text-primary-foreground ml-1" />*/}
+              <img
+                  src="/quizioo-logo.png"
+                  alt="Quizioo"
+                  className="w-80 h-80 rounded-xl object-contain max-w-none"
+              />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">ICT Quiz</CardTitle>
+              <CardTitle className="text-2xl font-bold">Quizioo</CardTitle>
               <CardDescription className="font-sinhala">
                 ගුරු පුරනය / Teacher Login
               </CardDescription>
@@ -83,10 +88,10 @@ export default function Auth() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="flex w-full mb-6 justify-center items-center">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-              </TabsList>
-              
+              <div className="flex w-full mb-6 justify-center items-center">
+                <div className="font-bold text-xl">Sign In</div>
+              </div>
+
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
