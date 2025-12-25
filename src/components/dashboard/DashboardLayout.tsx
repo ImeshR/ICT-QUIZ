@@ -52,11 +52,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <img 
-              src="/quizioo-logo.png" 
-              alt="Quizioo" 
-              className="w-10 h-10 rounded-xl object-contain"
-            />
+            {/*<img */}
+            {/*  src="/quizioo-logo.png" */}
+            {/*  alt="Quizioo" */}
+            {/*  className="w-10 h-10 rounded-xl object-contain"*/}
+            {/*/>*/}
             <span className="font-bold text-lg">Quizioo</span>
           </Link>
           <Button 
