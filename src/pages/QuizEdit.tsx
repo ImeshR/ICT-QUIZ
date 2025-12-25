@@ -11,7 +11,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2, ArrowLeft, Image, GripVertical, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Image, GripVertical, Check, Loader2 } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 
 interface Answer {
   id?: string;
@@ -36,6 +37,7 @@ export default function QuizEdit() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<number | null>(null);
 
   useEffect(() => {
     if (quizId) {
@@ -103,7 +105,49 @@ export default function QuizEdit() {
     setQuestions([...questions, newQuestion]);
   };
 
-  const removeQuestion = (index: number) => {
+  // Helper function to extract file path from Supabase storage URL
+  const extractFilePathFromUrl = (url: string | null): string | null => {
+    if (!url) return null;
+    try {
+      // Supabase storage URL format: https://[project].supabase.co/storage/v1/object/public/question-images/[path]
+      const match = url.match(/question-images\/(.+)$/);
+      return match ? match[1] : null;
+    } catch (error) {
+      console.error('Error extracting file path from URL:', error);
+      return null;
+    }
+  };
+
+  // Helper function to delete image from storage
+  const deleteImageFromStorage = async (imageUrl: string | null): Promise<void> => {
+    if (!imageUrl) return;
+    
+    const filePath = extractFilePathFromUrl(imageUrl);
+    if (!filePath) return;
+
+    try {
+      const { error } = await supabase.storage
+        .from('question-images')
+        .remove([filePath]);
+
+      if (error) {
+        console.error('Error deleting image from storage:', error);
+        // Don't throw - we don't want to block the operation if image deletion fails
+      }
+    } catch (error) {
+      console.error('Error deleting image from storage:', error);
+    }
+  };
+
+  const removeQuestion = async (index: number) => {
+    const questionToRemove = questions[index];
+    
+    // Delete image from storage if it exists
+    if (questionToRemove.image_url) {
+      await deleteImageFromStorage(questionToRemove.image_url);
+    }
+    
+    // Remove question from state
     setQuestions(questions.filter((_, i) => i !== index));
   };
 
@@ -129,13 +173,56 @@ export default function QuizEdit() {
   };
 
   const handleImageUpload = async (qIndex: number, file: File) => {
+    setUploadingImage(qIndex);
+    
     try {
-      const fileExt = file.name.split('.').pop();
+      // Check file size before compression (show warning if too large)
+      const maxSizeBeforeCompression = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSizeBeforeCompression) {
+        toast.warning('Large image detected. Compressing...');
+      }
+
+      // Compression options
+      const options = {
+        maxSizeMB: 1, // Maximum file size in MB (after compression)
+        maxWidthOrHeight: 1920, // Maximum width or height in pixels
+        useWebWorker: true, // Use web worker for better performance
+        fileType: file.type === 'image/png' 
+          ? 'image/png' // Keep PNG for transparency
+          : 'image/jpeg', // Convert to JPEG for better compression
+        initialQuality: 0.8, // 80% quality (good balance between size and quality)
+      };
+
+      // Compress the image
+      let compressedFile: File;
+      try {
+        compressedFile = await imageCompression(file, options);
+        
+        // Show compression stats
+        const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const compressedSizeMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
+        const savings = ((1 - compressedFile.size / file.size) * 100).toFixed(0);
+        
+        if (compressedFile.size < file.size) {
+          toast.success(`Image optimized: ${originalSizeMB}MB → ${compressedSizeMB}MB (${savings}% smaller)`);
+        }
+      } catch (compressionError) {
+        console.error('Compression error:', compressionError);
+        // If compression fails, use original file
+        compressedFile = file;
+        toast.warning('Could not compress image, uploading original');
+      }
+
+      // Determine file extension based on compressed file type
+      const fileExt = compressedFile.type.includes('png') ? 'png' : 'jpg';
       const fileName = `${quizId}/${Date.now()}.${fileExt}`;
       
+      // Upload compressed image
       const { error: uploadError } = await supabase.storage
         .from('question-images')
-        .upload(fileName, file);
+        .upload(fileName, compressedFile, {
+          contentType: compressedFile.type,
+        });
 
       if (uploadError) throw uploadError;
 
@@ -144,10 +231,12 @@ export default function QuizEdit() {
         .getPublicUrl(fileName);
 
       updateQuestion(qIndex, { image_url: publicUrl });
-      toast.success('Image uploaded!');
-    } catch (error) {
+      toast.success('Image uploaded successfully!');
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
+      toast.error(error.message || 'Failed to upload image');
+    } finally {
+      setUploadingImage(null);
     }
   };
 
@@ -171,6 +260,45 @@ export default function QuizEdit() {
 
     setSaving(true);
     try {
+      // Get existing questions to find which images need to be deleted
+      const { data: existingQuestions, error: fetchError } = await supabase
+        .from('questions')
+        .select('id, image_url')
+        .eq('quiz_session_id', quizId);
+
+      if (fetchError) throw fetchError;
+
+      // Find questions that are being removed (exist in DB but not in current state)
+      // Only check questions that have IDs (were previously saved)
+      const currentQuestionIds = new Set(
+        questions
+          .filter(q => q.id) // Only questions that were previously saved
+          .map(q => q.id)
+      );
+
+      const questionsToDelete = (existingQuestions || []).filter(
+        (eq: any) => !currentQuestionIds.has(eq.id)
+      );
+
+      // Delete images for removed questions
+      for (const deletedQuestion of questionsToDelete) {
+        if (deletedQuestion.image_url) {
+          await deleteImageFromStorage(deletedQuestion.image_url);
+        }
+      }
+
+      // Also check for images that were removed from existing questions
+      for (const currentQ of questions) {
+        if (currentQ.id) {
+          // This is an existing question - check if image was removed
+          const existingQ = existingQuestions?.find((eq: any) => eq.id === currentQ.id);
+          if (existingQ?.image_url && !currentQ.image_url) {
+            // Image was removed from this question
+            await deleteImageFromStorage(existingQ.image_url);
+          }
+        }
+      }
+
       // Delete existing questions (cascade deletes answers)
       await supabase.from('questions').delete().eq('quiz_session_id', quizId);
 
@@ -298,6 +426,9 @@ export default function QuizEdit() {
                   <div className="flex items-center gap-2">
                     <Image className="w-4 h-4 text-muted-foreground" />
                     <Label>Question Image (Optional)</Label>
+                    {uploadingImage === qIndex && (
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    )}
                   </div>
                   {question.image_url ? (
                     <div className="relative">
@@ -310,20 +441,47 @@ export default function QuizEdit() {
                         variant="destructive"
                         size="sm"
                         className="absolute top-2 right-2"
-                        onClick={() => updateQuestion(qIndex, { image_url: null })}
+                        disabled={uploadingImage === qIndex}
+                        onClick={async () => {
+                          const currentImageUrl = question.image_url;
+                          // Delete image from storage
+                          if (currentImageUrl) {
+                            await deleteImageFromStorage(currentImageUrl);
+                          }
+                          // Update state to remove image reference
+                          updateQuestion(qIndex, { image_url: null });
+                        }}
                       >
                         Remove
                       </Button>
                     </div>
                   ) : (
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageUpload(qIndex, file);
-                      }}
-                    />
+                    <div className="space-y-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingImage === qIndex}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            // Validate file type
+                            if (!file.type.startsWith('image/')) {
+                              toast.error('Please select a valid image file');
+                              return;
+                            }
+                            handleImageUpload(qIndex, file);
+                          }
+                        }}
+                      />
+                      {uploadingImage === qIndex && (
+                        <p className="text-sm text-muted-foreground">
+                          Optimizing and uploading image...
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Images will be automatically optimized to reduce file size
+                      </p>
+                    </div>
                   )}
                 </div>
 

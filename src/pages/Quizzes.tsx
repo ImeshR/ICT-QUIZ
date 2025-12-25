@@ -118,10 +118,63 @@ export default function Quizzes() {
     }
   };
 
+  // Helper function to extract file path from Supabase storage URL
+  const extractFilePathFromUrl = (url: string | null): string | null => {
+    if (!url) return null;
+    try {
+      // Supabase storage URL format: https://[project].supabase.co/storage/v1/object/public/question-images/[path]
+      const match = url.match(/question-images\/(.+)$/);
+      return match ? match[1] : null;
+    } catch (error) {
+      console.error('Error extracting file path from URL:', error);
+      return null;
+    }
+  };
+
+  // Helper function to delete image from storage
+  const deleteImageFromStorage = async (imageUrl: string | null): Promise<void> => {
+    if (!imageUrl) return;
+    
+    const filePath = extractFilePathFromUrl(imageUrl);
+    if (!filePath) return;
+
+    try {
+      const { error } = await supabase.storage
+        .from('question-images')
+        .remove([filePath]);
+
+      if (error) {
+        console.error('Error deleting image from storage:', error);
+        // Don't throw - we don't want to block the operation if image deletion fails
+      }
+    } catch (error) {
+      console.error('Error deleting image from storage:', error);
+    }
+  };
+
   const deleteQuiz = async (quizId: string) => {
     if (!confirm('Delete this quiz? All questions and results will be lost.')) return;
 
     try {
+      // Get all questions for this quiz to delete their images
+      const { data: questions, error: questionsError } = await supabase
+        .from('questions')
+        .select('image_url')
+        .eq('quiz_session_id', quizId);
+
+      if (questionsError) {
+        console.error('Error fetching questions:', questionsError);
+        // Continue with deletion even if we can't fetch questions
+      } else {
+        // Delete all images for this quiz
+        const imageDeletionPromises = (questions || [])
+          .filter((q: any) => q.image_url)
+          .map((q: any) => deleteImageFromStorage(q.image_url));
+        
+        await Promise.all(imageDeletionPromises);
+      }
+
+      // Delete the quiz session (cascade will delete questions and answers)
       const { error } = await supabase.from('quiz_sessions').delete().eq('id', quizId);
       if (error) throw error;
 

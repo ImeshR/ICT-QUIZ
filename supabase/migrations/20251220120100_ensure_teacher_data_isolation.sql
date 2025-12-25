@@ -58,3 +58,4 @@ CREATE POLICY "Teachers can view attempts for their quizzes"
   ));
 
 
+
