@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
-import { BarChart3, Trophy, Users, CheckCircle, XCircle, Medal } from 'lucide-react';
+import { BarChart3, Trophy, Users, CheckCircle, XCircle, Medal, Download, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,7 @@ export default function Results() {
   const [selectedQuiz, setSelectedQuiz] = useState<string | null>(null);
   const [results, setResults] = useState<AttemptResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingImage, setGeneratingImage] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -125,6 +127,191 @@ export default function Results() {
     if (percentage >= 60) return 'text-quiz-blue';
     if (percentage >= 40) return 'text-quiz-yellow';
     return 'text-destructive';
+  };
+
+  const generateShareableImage = async () => {
+    if (!selectedQuizData || results.length === 0) {
+      toast.error('No results to generate image');
+      return;
+    }
+
+    setGeneratingImage(true);
+    
+    try {
+      // Get top 5 completed participants
+      const top5 = results
+        .filter(r => r.completed_at)
+        .slice(0, 5);
+
+      if (top5.length === 0) {
+        toast.error('No completed attempts to generate image');
+        return;
+      }
+
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+
+      // Set canvas size (1200x1600 for good quality)
+      canvas.width = 1200;
+      canvas.height = 1600;
+
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, '#1e3a8a'); // Dark blue
+      gradient.addColorStop(0.5, '#3b82f6'); // Blue
+      gradient.addColorStop(1, '#60a5fa'); // Light blue
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Add decorative circles
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.beginPath();
+      ctx.arc(100, 100, 150, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(canvas.width - 100, 200, 120, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height - 100, 200, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Title section
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 64px Poppins, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏆 QUIZ RESULTS 🏆', canvas.width / 2, 120);
+
+      // Quiz title
+      ctx.font = 'bold 48px Poppins, sans-serif';
+      ctx.fillStyle = '#fbbf24'; // Yellow
+      const quizTitle = selectedQuizData.title.length > 40 
+        ? selectedQuizData.title.substring(0, 37) + '...'
+        : selectedQuizData.title;
+      ctx.fillText(quizTitle, canvas.width / 2, 200);
+
+      // Date
+      ctx.font = '32px Poppins, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.fillText(
+        format(new Date(selectedQuizData.deadline), 'MMM d, yyyy'),
+        canvas.width / 2,
+        260
+      );
+
+      // Top 5 Leaderboard
+      const startY = 350;
+      const itemHeight = 220;
+      const itemSpacing = 20;
+
+      top5.forEach((result, index) => {
+        const rank = result.ranking || index + 1;
+        const y = startY + (index * (itemHeight + itemSpacing));
+
+        // Background card with rounded corners
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        const radius = 30;
+        ctx.beginPath();
+        ctx.moveTo(100 + radius, y);
+        ctx.lineTo(canvas.width - 100 - radius, y);
+        ctx.quadraticCurveTo(canvas.width - 100, y, canvas.width - 100, y + radius);
+        ctx.lineTo(canvas.width - 100, y + itemHeight - radius);
+        ctx.quadraticCurveTo(canvas.width - 100, y + itemHeight, canvas.width - 100 - radius, y + itemHeight);
+        ctx.lineTo(100 + radius, y + itemHeight);
+        ctx.quadraticCurveTo(100, y + itemHeight, 100, y + itemHeight - radius);
+        ctx.lineTo(100, y + radius);
+        ctx.quadraticCurveTo(100, y, 100 + radius, y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rank badge
+        let rankColor = '#6b7280'; // Gray for 4th and 5th
+        let rankText = `${rank}`;
+        
+        if (rank === 1) {
+          rankColor = '#fbbf24'; // Gold
+          rankText = '🥇';
+        } else if (rank === 2) {
+          rankColor = '#9ca3af'; // Silver
+          rankText = '🥈';
+        } else if (rank === 3) {
+          rankColor = '#fb923c'; // Bronze
+          rankText = '🥉';
+        }
+
+        // Rank circle
+        ctx.fillStyle = rankColor;
+        ctx.beginPath();
+        ctx.arc(200, y + itemHeight / 2, 60, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rank text/emoji
+        ctx.fillStyle = '#ffffff';
+        ctx.font = rank <= 3 ? 'bold 48px Poppins, sans-serif' : 'bold 36px Poppins, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(rankText, 200, y + itemHeight / 2 + 15);
+
+        // Student name
+        ctx.fillStyle = '#1f2937';
+        ctx.font = 'bold 40px Poppins, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(result.students?.first_name || 'Unknown', 300, y + 60);
+
+        // Student code
+        ctx.font = '28px Poppins, sans-serif';
+        ctx.fillStyle = '#6b7280';
+        ctx.fillText(`Code: ${result.students?.student_code || 'N/A'}`, 300, y + 100);
+
+        // Score
+        const percentage = Math.round((result.score / result.total_questions) * 100);
+        ctx.font = 'bold 36px Poppins, sans-serif';
+        ctx.fillStyle = percentage >= 80 ? '#10b981' : percentage >= 60 ? '#3b82f6' : percentage >= 40 ? '#fbbf24' : '#ef4444';
+        ctx.fillText(`${result.score}/${result.total_questions} (${percentage}%)`, 300, y + 150);
+
+        // Time taken
+        if (result.time_taken_seconds) {
+          const minutes = Math.floor(result.time_taken_seconds / 60);
+          const seconds = result.time_taken_seconds % 60;
+          ctx.font = '28px Poppins, sans-serif';
+          ctx.fillStyle = '#6b7280';
+          ctx.textAlign = 'right';
+          ctx.fillText(`⏱️ ${minutes}m ${seconds}s`, canvas.width - 150, y + 100);
+          ctx.textAlign = 'left'; // Reset alignment
+        }
+      });
+
+      // Footer
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.font = '28px Poppins, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Generated by Quizioo', canvas.width / 2, canvas.height - 50);
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          throw new Error('Failed to create image blob');
+        }
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `quiz-results-${selectedQuizData.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast.success('Shareable image generated!');
+      }, 'image/png');
+    } catch (error) {
+      console.error('Error generating image:', error);
+      toast.error('Failed to generate image');
+    } finally {
+      setGeneratingImage(false);
+    }
   };
 
   const selectedQuizData = quizzes.find(q => q.id === selectedQuiz);
@@ -246,7 +433,28 @@ export default function Results() {
             ) : (
               <Card className="card-elevated overflow-hidden">
                 <CardHeader>
-                  <CardTitle>Leaderboard</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Leaderboard</CardTitle>
+                    {results.filter(r => r.completed_at).length >= 1 && (
+                      <Button
+                        onClick={generateShareableImage}
+                        disabled={generatingImage}
+                        className="gradient-primary btn-bounce"
+                      >
+                        {generatingImage ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Generate Shareable Image
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
