@@ -256,20 +256,15 @@ export default function Results() {
 
         // Student name
         ctx.fillStyle = '#1f2937';
-        ctx.font = 'bold 40px Poppins, sans-serif';
+        ctx.font = 'bold 48px Poppins, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(result.students?.first_name || 'Unknown', 300, y + 60);
-
-        // Student code
-        ctx.font = '28px Poppins, sans-serif';
-        ctx.fillStyle = '#6b7280';
-        ctx.fillText(`Code: ${result.students?.student_code || 'N/A'}`, 300, y + 100);
+        ctx.fillText(result.students?.first_name || 'Unknown', 300, y + 80);
 
         // Score
         const percentage = Math.round((result.score / result.total_questions) * 100);
-        ctx.font = 'bold 36px Poppins, sans-serif';
+        ctx.font = 'bold 40px Poppins, sans-serif';
         ctx.fillStyle = percentage >= 80 ? '#10b981' : percentage >= 60 ? '#3b82f6' : percentage >= 40 ? '#fbbf24' : '#ef4444';
-        ctx.fillText(`${result.score}/${result.total_questions} (${percentage}%)`, 300, y + 150);
+        ctx.fillText(`${result.score}/${result.total_questions} (${percentage}%)`, 300, y + 140);
 
         // Time taken
         if (result.time_taken_seconds) {
