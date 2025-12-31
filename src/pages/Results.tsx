@@ -455,13 +455,14 @@ export default function Results() {
             ) : (
               <Card className="card-elevated overflow-hidden">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Leaderboard</CardTitle>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <CardTitle className="text-xl sm:text-2xl">Leaderboard</CardTitle>
                     {results.filter(r => r.completed_at).length >= 1 && (
                       <Button
                         onClick={generateShareableImage}
                         disabled={generatingImage}
-                        className="gradient-primary btn-bounce"
+                        className="gradient-primary btn-bounce w-full sm:w-auto"
+                        size="sm"
                       >
                         {generatingImage ? (
                           <>
@@ -471,7 +472,7 @@ export default function Results() {
                         ) : (
                           <>
                             <Download className="w-4 h-4 mr-2" />
-                            Generate Shareable Image
+                            Share Image
                           </>
                         )}
                       </Button>
