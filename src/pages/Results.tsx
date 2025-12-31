@@ -159,11 +159,38 @@ export default function Results() {
       canvas.width = 1200;
       canvas.height = 1600;
 
-      // Background gradient
+      // Predefined color palettes for backgrounds
+      const colorPalettes = [
+        // Blue palette
+        { dark: '#1e3a8a', mid: '#3b82f6', light: '#60a5fa' },
+        // Purple palette
+        { dark: '#581c87', mid: '#9333ea', light: '#c084fc' },
+        // Green palette
+        { dark: '#14532d', mid: '#22c55e', light: '#4ade80' },
+        // Orange palette
+        { dark: '#9a3412', mid: '#f97316', light: '#fb923c' },
+        // Pink palette
+        { dark: '#831843', mid: '#ec4899', light: '#f472b6' },
+        // Teal palette
+        { dark: '#134e4a', mid: '#14b8a6', light: '#5eead4' },
+        // Indigo palette
+        { dark: '#312e81', mid: '#6366f1', light: '#818cf8' },
+        // Red palette
+        { dark: '#991b1b', mid: '#ef4444', light: '#f87171' },
+        // Yellow palette
+        { dark: '#854d0e', mid: '#eab308', light: '#fde047' },
+        // Cyan palette
+        { dark: '#164e63', mid: '#06b6d4', light: '#67e8f9' },
+      ];
+
+      // Randomly select a color palette
+      const selectedPalette = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
+
+      // Background gradient with random colors
       const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, '#1e3a8a'); // Dark blue
-      gradient.addColorStop(0.5, '#3b82f6'); // Blue
-      gradient.addColorStop(1, '#60a5fa'); // Light blue
+      gradient.addColorStop(0, selectedPalette.dark);
+      gradient.addColorStop(0.5, selectedPalette.mid);
+      gradient.addColorStop(1, selectedPalette.light);
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
