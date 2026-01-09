@@ -26,8 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(null);
           setUser(null);
         } else {
-          setSession(session);
-          setUser(session?.user ?? null);
+        setSession(session);
+        setUser(session?.user ?? null);
         }
         setLoading(false);
       }

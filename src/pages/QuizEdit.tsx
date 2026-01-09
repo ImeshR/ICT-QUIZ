@@ -50,13 +50,20 @@ export default function QuizEdit() {
   const [uploadingImage, setUploadingImage] = useState<number | null>(null);
 
   useEffect(() => {
-    if (quizId) {
+    if (quizId && user) {
       loadQuiz();
     }
-  }, [quizId]);
+  }, [quizId, user]);
 
   const loadQuiz = async () => {
+    if (!quizId || !user) {
+      setLoading(false);
+      return;
+    }
+
     try {
+      setLoading(true);
+      
       // Load quiz metadata
       const { data: quiz, error: quizError } = await supabase
         .from('quiz_sessions')
@@ -69,25 +76,23 @@ export default function QuizEdit() {
       setQuizDescription(quiz.description || '');
 
       // Load available groups
-      if (user) {
-        const { data: groupsData, error: groupsError } = await supabase
-          .from('groups')
-          .select('id, name')
-          .eq('teacher_id', user.id)
-          .order('name');
+      const { data: groupsData, error: groupsError } = await supabase
+        .from('groups')
+        .select('id, name')
+        .eq('teacher_id', user.id)
+        .order('name');
 
-        if (groupsError) throw groupsError;
-        setAvailableGroups(groupsData || []);
+      if (groupsError) throw groupsError;
+      setAvailableGroups(groupsData || []);
 
-        // Load assigned groups
-        const { data: assignedGroups, error: assignedError } = await supabase
-          .from('quiz_session_groups')
-          .select('group_id')
-          .eq('quiz_session_id', quizId);
+      // Load assigned groups
+      const { data: assignedGroups, error: assignedError } = await supabase
+        .from('quiz_session_groups')
+        .select('group_id')
+        .eq('quiz_session_id', quizId);
 
-        if (assignedError) throw assignedError;
-        setSelectedGroups((assignedGroups || []).map((g: any) => g.group_id));
-      }
+      if (assignedError) throw assignedError;
+      setSelectedGroups((assignedGroups || []).map((g: any) => g.group_id));
 
       // Load questions
       const { data: questionsData, error: questionsError } = await supabase
@@ -115,9 +120,9 @@ export default function QuizEdit() {
       }));
 
       setQuestions(formattedQuestions);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading quiz:', error);
-      toast.error('Failed to load quiz');
+      toast.error(error.message || 'Failed to load quiz');
     } finally {
       setLoading(false);
     }
@@ -326,19 +331,22 @@ export default function QuizEdit() {
 
       if (deleteError) throw deleteError;
 
-      // Then, insert new assignments
-      if (selectedGroups.length > 0) {
-        const groupAssignments = selectedGroups.map(groupId => ({
-          quiz_session_id: quizId,
-          group_id: groupId,
-        }));
-
-        const { error: insertError } = await supabase
-          .from('quiz_session_groups')
-          .insert(groupAssignments);
-
-        if (insertError) throw insertError;
+      // Then, insert new assignments (validation ensures at least one group is selected)
+      // Double-check for safety - this should never be empty due to validation above
+      if (selectedGroups.length === 0) {
+        throw new Error('At least one group must be assigned to the quiz');
       }
+
+      const groupAssignments = selectedGroups.map(groupId => ({
+        quiz_session_id: quizId,
+        group_id: groupId,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('quiz_session_groups')
+        .insert(groupAssignments);
+
+      if (insertError) throw insertError;
       // Get existing questions to find which images need to be deleted
       const { data: existingQuestions, error: fetchError } = await supabase
         .from('questions')

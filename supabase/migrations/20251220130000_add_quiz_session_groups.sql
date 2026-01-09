@@ -11,6 +11,12 @@ CREATE TABLE IF NOT EXISTS public.quiz_session_groups (
 ALTER TABLE public.quiz_session_groups ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for quiz_session_groups
+-- Drop existing policies if they exist to avoid conflicts
+DROP POLICY IF EXISTS "Teachers can view quiz session groups for their quizzes" ON public.quiz_session_groups;
+DROP POLICY IF EXISTS "Teachers can create quiz session groups for their quizzes" ON public.quiz_session_groups;
+DROP POLICY IF EXISTS "Teachers can delete quiz session groups for their quizzes" ON public.quiz_session_groups;
+DROP POLICY IF EXISTS "Anyone can view quiz session groups" ON public.quiz_session_groups;
+
 CREATE POLICY "Teachers can view quiz session groups for their quizzes"
   ON public.quiz_session_groups FOR SELECT
   USING (
@@ -46,6 +52,11 @@ CREATE POLICY "Teachers can delete quiz session groups for their quizzes"
     )
   );
 
+-- Public read for quiz session groups (needed for students to check if their group is assigned)
+CREATE POLICY "Anyone can view quiz session groups"
+  ON public.quiz_session_groups FOR SELECT
+  USING (true);
+
 -- Migrate existing data: create entries in quiz_session_groups for existing quiz_sessions
 INSERT INTO public.quiz_session_groups (quiz_session_id, group_id)
 SELECT id, group_id
@@ -56,4 +67,5 @@ ON CONFLICT (quiz_session_id, group_id) DO NOTHING;
 -- Create index for better query performance
 CREATE INDEX IF NOT EXISTS idx_quiz_session_groups_quiz_session_id ON public.quiz_session_groups(quiz_session_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_session_groups_group_id ON public.quiz_session_groups(group_id);
+
 

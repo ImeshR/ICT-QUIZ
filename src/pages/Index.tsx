@@ -32,18 +32,38 @@ export default function Index() {
       }
 
       // Check if student's group is assigned to any active quiz
+      // First check quiz_session_groups (new many-to-many table)
       const { data: quizGroups } = await supabase
         .from('quiz_session_groups')
         .select('quiz_session_id')
         .eq('group_id', student.group_id);
 
-      if (!quizGroups || quizGroups.length === 0) {
+      let quizSessionIds: string[] = [];
+      
+      if (quizGroups && quizGroups.length > 0) {
+        quizSessionIds = quizGroups.map(qg => qg.quiz_session_id);
+      }
+
+      // Fallback: Also check legacy group_id in quiz_sessions for backward compatibility
+      // This handles quizzes created before the migration or if quiz_session_groups is empty
+      const { data: legacyQuizzes } = await supabase
+        .from('quiz_sessions')
+        .select('id')
+        .eq('group_id', student.group_id)
+        .eq('is_active', true)
+        .gte('deadline', new Date().toISOString());
+
+      if (legacyQuizzes && legacyQuizzes.length > 0) {
+        const legacyIds = legacyQuizzes.map(q => q.id);
+        // Merge and deduplicate
+        quizSessionIds = [...new Set([...quizSessionIds, ...legacyIds])];
+      }
+
+      if (quizSessionIds.length === 0) {
         toast.error('No active quiz available for your group.');
         setLoading(false);
         return;
       }
-
-      const quizSessionIds = quizGroups.map(qg => qg.quiz_session_id);
 
       const { data: quiz } = await supabase
         .from('quiz_sessions')
