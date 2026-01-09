@@ -31,10 +31,24 @@ export default function Index() {
         return;
       }
 
+      // Check if student's group is assigned to any active quiz
+      const { data: quizGroups } = await supabase
+        .from('quiz_session_groups')
+        .select('quiz_session_id')
+        .eq('group_id', student.group_id);
+
+      if (!quizGroups || quizGroups.length === 0) {
+        toast.error('No active quiz available for your group.');
+        setLoading(false);
+        return;
+      }
+
+      const quizSessionIds = quizGroups.map(qg => qg.quiz_session_id);
+
       const { data: quiz } = await supabase
         .from('quiz_sessions')
         .select('id, access_code, deadline')
-        .eq('group_id', student.group_id)
+        .in('id', quizSessionIds)
         .eq('is_active', true)
         .gte('deadline', new Date().toISOString())
         .order('created_at', { ascending: false })

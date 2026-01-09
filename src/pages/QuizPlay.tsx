@@ -83,7 +83,40 @@ export default function QuizPlay() {
       if (!quizData || new Date(quizData.deadline) < new Date()) { toast.error('Quiz not available'); navigate('/'); return; }
       setQuiz(quizData);
 
-      const { data: studentData } = await supabase.from('students').select('*').eq('student_code', studentCode).eq('group_id', quizData.group_id).maybeSingle();
+      // Get student first
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('*')
+        .eq('student_code', studentCode)
+        .maybeSingle();
+
+      if (!studentData) {
+        toast.error('Invalid student code');
+        navigate('/');
+        return;
+      }
+
+      // Check if student's group is assigned to this quiz via quiz_session_groups
+      const { data: quizGroups } = await supabase
+        .from('quiz_session_groups')
+        .select('group_id')
+        .eq('quiz_session_id', quizData.id);
+
+      const assignedGroupIds = (quizGroups || []).map(qg => qg.group_id);
+      
+      // Also check legacy group_id for backward compatibility
+      if (quizData.group_id && !assignedGroupIds.includes(quizData.group_id)) {
+        assignedGroupIds.push(quizData.group_id);
+      }
+
+      // Verify student's group is assigned to this quiz
+      if (!assignedGroupIds.includes(studentData.group_id)) {
+        toast.error('This quiz is not available for your group');
+        navigate('/');
+        return;
+      }
+
+      setStudent(studentData);
       if (!studentData) { toast.error('Invalid student code'); navigate('/'); return; }
       setStudent(studentData);
 

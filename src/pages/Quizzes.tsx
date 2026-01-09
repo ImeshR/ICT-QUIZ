@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
-import { Plus, FileQuestion, Trash2, Copy, ExternalLink, Edit, Clock, Users } from 'lucide-react';
+import { Plus, FileQuestion, Trash2, Copy, ExternalLink, Edit, Clock, Users, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Group {
@@ -41,6 +41,7 @@ export default function Quizzes() {
   const [editQuizOpen, setEditQuizOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<QuizSession | null>(null);
   const [extendDeadline, setExtendDeadline] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -54,6 +55,12 @@ export default function Quizzes() {
       return;
     }
   }, [editQuizOpen]);
+
+  useEffect(() => {
+    if (!newQuizOpen) {
+      setSelectedGroups([]);
+    }
+  }, [newQuizOpen]);
 
   const loadData = async () => {
     if (!user) return;
@@ -88,34 +95,73 @@ export default function Quizzes() {
 
   const createQuiz = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (selectedGroups.length === 0) {
+      toast.error('Please select at least one group');
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
-    const groupId = formData.get('groupId') as string;
     const deadline = formData.get('deadline') as string;
     const participantLimit = formData.get('participantLimit') as string;
     const durationSeconds = formData.get('durationSeconds') as string;
 
+    // Use first selected group for backward compatibility
+    const primaryGroupId = selectedGroups[0];
+
     try {
-      const { error } = await supabase.from('quiz_sessions').insert({
+      // Create quiz session
+      const { data: newQuiz, error: quizError } = await supabase.from('quiz_sessions').insert({
         title,
         description: description || null,
-        group_id: groupId,
+        group_id: primaryGroupId, // Keep for backward compatibility
         deadline: new Date(deadline).toISOString(),
         participant_limit: participantLimit ? parseInt(participantLimit) : null,
         duration_seconds: durationSeconds ? parseInt(durationSeconds) : 1800,
         teacher_id: user?.id,
         access_code: '', // Will be auto-generated
-      });
+      }).select().single();
 
-      if (error) throw error;
+      if (quizError) throw quizError;
+
+      // Create group assignments in junction table for all selected groups
+      if (newQuiz && selectedGroups.length > 0) {
+        const groupAssignments = selectedGroups.map(groupId => ({
+          quiz_session_id: newQuiz.id,
+          group_id: groupId,
+        }));
+
+        const { error: groupError } = await supabase
+          .from('quiz_session_groups')
+          .insert(groupAssignments);
+
+        if (groupError) {
+          console.error('Error creating group assignments:', groupError);
+          // Don't throw - quiz is created, group assignments can be added later
+        }
+      }
 
       toast.success('Quiz created! Now add questions.');
       setNewQuizOpen(false);
+      setSelectedGroups([]);
       loadData();
     } catch (error: any) {
       toast.error(error.message || 'Failed to create quiz');
     }
+  };
+
+  const toggleGroupSelection = (groupId: string) => {
+    setSelectedGroups(prev =>
+      prev.includes(groupId)
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
+  const removeGroup = (groupId: string) => {
+    setSelectedGroups(prev => prev.filter(id => id !== groupId));
   };
 
   // Helper function to extract file path from Supabase storage URL
@@ -298,19 +344,46 @@ export default function Quizzes() {
                   <Input id="description" name="description" placeholder="Brief description" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="groupId">Select Group</Label>
-                  <Select name="groupId" required>
+                  <Label>Select Groups *</Label>
+                  <Select onValueChange={toggleGroupSelection}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Choose a group" />
+                      <SelectValue placeholder="Choose groups" />
                     </SelectTrigger>
                     <SelectContent>
-                      {groups.map((group) => (
-                        <SelectItem key={group.id} value={group.id}>
-                          {group.name}
-                        </SelectItem>
-                      ))}
+                      {groups
+                        .filter(group => !selectedGroups.includes(group.id))
+                        .map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
+                  {selectedGroups.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 p-3 border rounded-lg bg-muted/30 min-h-[60px]">
+                      {selectedGroups.map((groupId) => {
+                        const group = groups.find(g => g.id === groupId);
+                        return group ? (
+                          <div
+                            key={groupId}
+                            className="flex items-center gap-1 px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm"
+                          >
+                            <span>{group.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeGroup(groupId)}
+                              className="ml-1 hover:bg-primary-foreground/20 rounded-full p-0.5 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                  {selectedGroups.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No groups selected</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="deadline">Deadline</Label>

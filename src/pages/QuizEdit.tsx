@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 import { Plus, Trash2, ArrowLeft, Image, GripVertical, Check, Loader2 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
@@ -30,10 +31,19 @@ interface Question {
   answers: Answer[];
 }
 
+interface Group {
+  id: string;
+  name: string;
+}
+
 export default function QuizEdit() {
   const { quizId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [quizTitle, setQuizTitle] = useState('');
+  const [quizDescription, setQuizDescription] = useState('');
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,15 +57,39 @@ export default function QuizEdit() {
 
   const loadQuiz = async () => {
     try {
+      // Load quiz metadata
       const { data: quiz, error: quizError } = await supabase
         .from('quiz_sessions')
-        .select('title')
+        .select('title, description')
         .eq('id', quizId)
         .single();
 
       if (quizError) throw quizError;
-      setQuizTitle(quiz.title);
+      setQuizTitle(quiz.title || '');
+      setQuizDescription(quiz.description || '');
 
+      // Load available groups
+      if (user) {
+        const { data: groupsData, error: groupsError } = await supabase
+          .from('groups')
+          .select('id, name')
+          .eq('teacher_id', user.id)
+          .order('name');
+
+        if (groupsError) throw groupsError;
+        setAvailableGroups(groupsData || []);
+
+        // Load assigned groups
+        const { data: assignedGroups, error: assignedError } = await supabase
+          .from('quiz_session_groups')
+          .select('group_id')
+          .eq('quiz_session_id', quizId);
+
+        if (assignedError) throw assignedError;
+        setSelectedGroups((assignedGroups || []).map((g: any) => g.group_id));
+      }
+
+      // Load questions
       const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
         .select('*, answers(*)')
@@ -241,7 +275,18 @@ export default function QuizEdit() {
   };
 
   const saveQuiz = async () => {
-    // Validate
+    // Validate quiz metadata
+    if (!quizTitle.trim()) {
+      toast.error('Quiz title is required');
+      return;
+    }
+
+    if (selectedGroups.length === 0) {
+      toast.error('Please select at least one group');
+      return;
+    }
+
+    // Validate questions
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (!q.question_text.trim()) {
@@ -260,6 +305,40 @@ export default function QuizEdit() {
 
     setSaving(true);
     try {
+      // Update quiz metadata
+      const { error: updateError } = await supabase
+        .from('quiz_sessions')
+        .update({
+          title: quizTitle.trim(),
+          description: quizDescription.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', quizId);
+
+      if (updateError) throw updateError;
+
+      // Update group assignments
+      // First, delete all existing assignments
+      const { error: deleteError } = await supabase
+        .from('quiz_session_groups')
+        .delete()
+        .eq('quiz_session_id', quizId);
+
+      if (deleteError) throw deleteError;
+
+      // Then, insert new assignments
+      if (selectedGroups.length > 0) {
+        const groupAssignments = selectedGroups.map(groupId => ({
+          quiz_session_id: quizId,
+          group_id: groupId,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('quiz_session_groups')
+          .insert(groupAssignments);
+
+        if (insertError) throw insertError;
+      }
       // Get existing questions to find which images need to be deleted
       const { data: existingQuestions, error: fetchError } = await supabase
         .from('questions')
@@ -346,6 +425,14 @@ export default function QuizEdit() {
     }
   };
 
+  const toggleGroup = (groupId: string) => {
+    setSelectedGroups(prev =>
+      prev.includes(groupId)
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
   const answerColors = ['quiz-btn-red', 'quiz-btn-blue', 'quiz-btn-yellow', 'quiz-btn-green'];
 
   if (loading) {
@@ -366,12 +453,72 @@ export default function QuizEdit() {
           </Button>
           <div className="flex-1">
             <h1 className="text-2xl font-bold">Edit Quiz</h1>
-            <p className="text-muted-foreground">{quizTitle}</p>
           </div>
           <Button onClick={saveQuiz} className="gradient-primary btn-bounce" disabled={saving}>
             {saving ? 'Saving...' : 'Save Quiz'}
           </Button>
         </div>
+
+        {/* Quiz Metadata Section */}
+        <Card className="card-elevated">
+          <CardHeader>
+            <CardTitle>Quiz Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="quiz-title">Quiz Title *</Label>
+              <Input
+                id="quiz-title"
+                value={quizTitle}
+                onChange={(e) => setQuizTitle(e.target.value)}
+                placeholder="Enter quiz title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quiz-description">Description</Label>
+              <Textarea
+                id="quiz-description"
+                value={quizDescription}
+                onChange={(e) => setQuizDescription(e.target.value)}
+                placeholder="Enter quiz description (optional)"
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Assigned Groups *</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 border rounded-lg bg-muted/30">
+                {availableGroups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground col-span-2">
+                    No groups available. Create groups first.
+                  </p>
+                ) : (
+                  availableGroups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center space-x-2 cursor-pointer"
+                      onClick={() => toggleGroup(group.id)}
+                    >
+                      <Checkbox
+                        id={`group-${group.id}`}
+                        checked={selectedGroups.includes(group.id)}
+                        onCheckedChange={() => toggleGroup(group.id)}
+                      />
+                      <Label
+                        htmlFor={`group-${group.id}`}
+                        className="cursor-pointer flex-1 font-normal"
+                      >
+                        {group.name}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+              {selectedGroups.length === 0 && (
+                <p className="text-sm text-destructive">Please select at least one group</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Questions */}
         <div className="space-y-6">
