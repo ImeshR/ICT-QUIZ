@@ -345,7 +345,7 @@ export default function Results() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Results</h1>
-            <p className="text-muted-foreground font-sinhala">ප්‍රතිඵල විශ්ලේෂණය - View quiz results</p>
+            <p className="text-muted-foreground">View quiz results</p>
           </div>
           {quizzes.length > 0 && (
             <Select value={selectedQuiz || ''} onValueChange={setSelectedQuiz}>
