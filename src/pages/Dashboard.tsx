@@ -115,7 +115,7 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground font-sinhala">සාදරයෙන් පිළිගනිමු - Welcome</p>
+            <p className="text-muted-foreground">Welcome</p>
           </div>
           <div className="flex gap-3">
             <Link to="/dashboard/groups">
@@ -141,7 +141,6 @@ export default function Dashboard() {
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">
                     {stat.title}
-                    <span className="block text-xs text-muted-foreground font-sinhala">{stat.titleSi}</span>
                   </CardTitle>
                   <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center`}>
                     <stat.icon className="w-5 h-5 text-primary-foreground" />
@@ -164,7 +163,6 @@ export default function Dashboard() {
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-primary" />
                 Manage Groups
-                <span className="text-sm font-normal text-muted-foreground font-sinhala ml-2">කණ්ඩායම් කළමනාකරණය</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -185,7 +183,6 @@ export default function Dashboard() {
               <CardTitle className="flex items-center gap-2">
                 <FileQuestion className="w-5 h-5 text-accent" />
                 Create Quiz
-                <span className="text-sm font-normal text-muted-foreground font-sinhala ml-2">ප්‍රශ්නාවලියක් සාදන්න</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

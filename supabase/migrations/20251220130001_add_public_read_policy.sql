@@ -7,3 +7,4 @@ CREATE POLICY "Anyone can view quiz session groups"
   ON public.quiz_session_groups FOR SELECT
   USING (true);
 
+

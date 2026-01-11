@@ -159,7 +159,7 @@ export default function Groups() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Groups</h1>
-            <p className="text-muted-foreground font-sinhala">කණ්ඩායම් කළමනාකරණය - Manage your classes</p>
+            <p className="text-muted-foreground">Manage your classes</p>
           </div>
           <Dialog open={newGroupOpen} onOpenChange={setNewGroupOpen}>
             <DialogTrigger asChild>

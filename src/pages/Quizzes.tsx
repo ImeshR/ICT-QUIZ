@@ -321,7 +321,7 @@ export default function Quizzes() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Quizzes</h1>
-            <p className="text-muted-foreground font-sinhala">ප්‍රශ්නාවලි කළමනාකරණය - Manage your quizzes</p>
+            <p className="text-muted-foreground">Manage your quizzes</p>
           </div>
           <Dialog open={newQuizOpen} onOpenChange={setNewQuizOpen}>
             <DialogTrigger asChild>

@@ -120,14 +120,13 @@ export default function Index() {
             
             <div>
               <h1 className="text-3xl font-bold mb-2">Join Quiz</h1>
-              <p className="text-muted-foreground font-sinhala">ප්‍රශ්නාවලියට සම්බන්ධ වන්න</p>
             </div>
 
             <form onSubmit={handleJoinQuiz} className="space-y-4">
               <Input
                 value={studentCode}
                 onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
-                placeholder="Enter your code / ඔබේ කේතය ඇතුළත් කරන්න"
+                placeholder="Enter your code"
                 className="text-center text-2xl font-mono tracking-widest h-16"
                 maxLength={6}
               />

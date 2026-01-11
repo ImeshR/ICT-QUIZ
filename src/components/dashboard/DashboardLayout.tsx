@@ -98,7 +98,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <item.icon className="w-5 h-5" />
               <div>
                 <span className="font-medium">{item.label}</span>
-                <span className="block text-xs opacity-75 font-sinhala">{item.labelSi}</span>
               </div>
             </Link>
           ))}
@@ -144,7 +143,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <item.icon className="w-5 h-5" />
               <div>
                 <span className="font-medium">{item.label}</span>
-                <span className="block text-xs opacity-75 font-sinhala">{item.labelSi}</span>
               </div>
             </Link>
           ))}

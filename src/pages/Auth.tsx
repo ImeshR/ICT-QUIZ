@@ -81,8 +81,8 @@ export default function Auth() {
             </div>
             <div>
               <CardTitle className="text-2xl font-bold">Quizioo</CardTitle>
-              <CardDescription className="font-sinhala">
-                ගුරු පුරනය / Teacher Login
+              <CardDescription>
+                Teacher Login
               </CardDescription>
             </div>
           </CardHeader>

@@ -551,12 +551,12 @@ export default function QuizEdit() {
               <CardContent className="space-y-6">
                 {/* Question Text */}
                 <div className="space-y-2">
-                  <Label>Question Text (English / Sinhala)</Label>
+                  <Label>Question Text</Label>
                   <Textarea
                     value={question.question_text}
                     onChange={(e) => updateQuestion(qIndex, { question_text: e.target.value })}
-                    placeholder="Enter your question here... / ඔබේ ප්‍රශ්නය මෙහි ඇතුළත් කරන්න..."
-                    className="min-h-[100px] font-sinhala"
+                    placeholder="Enter your question here..."
+                    className="min-h-[100px]"
                   />
                 </div>
 

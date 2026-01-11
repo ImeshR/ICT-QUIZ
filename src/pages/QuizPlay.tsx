@@ -476,7 +476,6 @@ export default function QuizPlay() {
                     <CheckCircle className="w-12 h-12 text-muted-foreground" />
                   </div>
                   <h1 className="text-3xl font-bold">Quiz Already Completed</h1>
-                  <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය දැනටමත් අවසන් කර ඇත</p>
                   <div className="p-4 bg-muted/50 rounded-xl">
                     <p className="text-sm text-muted-foreground mb-2">You have already completed this quiz.</p>
                     <p className="text-sm text-muted-foreground">Your previous results:</p>
@@ -486,7 +485,6 @@ export default function QuizPlay() {
                 <>
                   <Trophy className="w-20 h-20 mx-auto text-quiz-yellow animate-pulse" />
                   <h1 className="text-3xl font-bold">Quiz Complete!</h1>
-                  <p className="font-sinhala text-muted-foreground">ප්‍රශ්නාවලිය අවසන්!</p>
                 </>
               )}
               
@@ -602,7 +600,7 @@ export default function QuizPlay() {
             </div>
           )}
           
-          <h2 className="text-xl md:text-2xl font-bold text-center mb-8 font-sinhala min-h-[3rem] flex items-center justify-center">
+          <h2 className="text-xl md:text-2xl font-bold text-center mb-8 min-h-[3rem] flex items-center justify-center">
             {currentQ?.question_text}
           </h2>
           
@@ -622,7 +620,7 @@ export default function QuizPlay() {
                   zIndex: selectedAnswers.includes(ans.id) ? 10 : 1
                 }}
               >
-                <span className="text-primary-foreground font-sinhala text-center">{ans.answer_text}</span>
+                <span className="text-primary-foreground text-center">{ans.answer_text}</span>
               </button>
             ))}
           </div>
