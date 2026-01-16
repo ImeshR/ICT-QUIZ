@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Play, Users } from 'lucide-react';
+import { Play, Users, User } from 'lucide-react';
 import Footer from '@/components/Footer';
 
 export default function Index() {
@@ -143,6 +143,41 @@ export default function Index() {
             <p className="text-sm text-muted-foreground">
               Ask your teacher for your student code
             </p>
+            
+            <div className="pt-4 border-t space-y-3">
+              <p className="text-sm font-semibold text-foreground">Or</p>
+              <Button
+                onClick={async () => {
+                  if (!studentCode.trim()) {
+                    toast.error('Please enter your student code first');
+                    return;
+                  }
+                  
+                  // Verify student code exists
+                  const { data: student } = await supabase
+                    .from('students')
+                    .select('id')
+                    .eq('student_code', studentCode.toUpperCase())
+                    .maybeSingle();
+
+                  if (!student) {
+                    toast.error('Invalid student code. Please check your code.');
+                    return;
+                  }
+
+                  navigate(`/student/${studentCode.toUpperCase()}`);
+                }}
+                variant="outline"
+                className="w-full h-12 text-lg"
+                disabled={!studentCode.trim()}
+              >
+                <User className="w-5 h-5 mr-2" />
+                View My Profile
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Enter your code above to view your quiz history and results
+              </p>
+            </div>
           </CardContent>
         </Card>
       </main>

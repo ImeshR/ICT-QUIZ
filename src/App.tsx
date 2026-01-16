@@ -12,6 +12,7 @@ import Quizzes from "./pages/Quizzes";
 import QuizEdit from "./pages/QuizEdit";
 import Results from "./pages/Results";
 import QuizPlay from "./pages/QuizPlay";
+import StudentProfile from "./pages/StudentProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/quiz/:accessCode" element={<QuizPlay />} />
+            <Route path="/student/:studentCode" element={<StudentProfile />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/dashboard/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
             <Route path="/dashboard/quizzes" element={<ProtectedRoute><Quizzes /></ProtectedRoute>} />

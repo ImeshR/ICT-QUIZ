@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, Trophy, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Trophy, Clock, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import confetti from 'canvas-confetti';
 import Footer from '@/components/Footer';
@@ -530,12 +530,22 @@ export default function QuizPlay() {
                 )}
               </div>
               
-              <Button 
-                onClick={() => navigate('/')} 
-                className="w-full gradient-primary btn-bounce h-12 text-lg"
-              >
-                Back to Home
-              </Button>
+              <div className="space-y-3">
+                <Button 
+                  onClick={() => navigate(`/student/${studentCode}`)} 
+                  className="w-full gradient-primary btn-bounce h-12 text-lg"
+                >
+                  <User className="w-5 h-5 mr-2" />
+                  View My Profile
+                </Button>
+                <Button 
+                  onClick={() => navigate('/')} 
+                  variant="outline"
+                  className="w-full h-12 text-lg"
+                >
+                  Back to Home
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
