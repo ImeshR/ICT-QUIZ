@@ -8,3 +8,4 @@ CREATE POLICY "Anyone can view quiz session groups"
   USING (true);
 
 
+
