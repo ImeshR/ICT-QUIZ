@@ -91,7 +91,7 @@ export default function Index() {
 
   return (
     <div className="min-h-screen gradient-hero flex flex-col">
-      <header className="p-4 flex justify-between items-center">
+      <header className="p-4 flex justify-between items-center relative z-50">
         <div className="flex items-center gap-2">
           {/*<img */}
           {/*  src="/quizioo-logo.png" */}
@@ -100,21 +100,21 @@ export default function Index() {
           {/*/>*/}
           <span className="font-bold text-2xl text-primary-foreground">Quizioo</span>
         </div>
-        <Button variant="secondary" onClick={() => navigate('/auth')} className="btn-bounce">
+        <Button variant="secondary" onClick={() => navigate('/auth')} className="btn-bounce relative z-50">
           <Users className="w-4 h-4 mr-2" />
           Teacher Login
         </Button>
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-4">
+      <main className="flex-1 flex items-center justify-center p-4 relative z-10">
         <Card className="w-full max-w-md card-elevated animate-bounce-in">
           <CardContent className="pt-8 pb-8 text-center space-y-6">
-            <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center  animate-pulse-scale">
+            <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center animate-pulse-scale relative z-0">
               {/*<Play className="w-10 h-10 text-primary-foreground ml-1" />*/}
               <img
                 src="/quizioo-logo.png"
                 alt="Quizioo"
-                className="w-80 h-80 rounded-xl object-contain max-w-none"
+                className="w-80 h-80 rounded-xl object-contain max-w-none relative z-0"
               />
             </div>
             
