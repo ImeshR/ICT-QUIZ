@@ -14,6 +14,7 @@ import Results from "./pages/Results";
 import QuizPlay from "./pages/QuizPlay";
 import StudentProfile from "./pages/StudentProfile";
 import NotFound from "./pages/NotFound";
+import {Analytics} from "@vercel/analytics/react";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        <Analytics />
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
