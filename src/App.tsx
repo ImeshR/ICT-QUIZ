@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
-import { Analytics } from "@vercel/analytics/react";
+import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -18,10 +18,27 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Only load Analytics on Vercel (not in local dev/preview)
-const isVercel = typeof window !== 'undefined' && 
-  (window.location.hostname.includes('vercel.app') || 
-   window.location.hostname.includes('vercel.com'));
+// Conditional Analytics component that only loads on Vercel
+function ConditionalAnalytics() {
+  const [AnalyticsComponent, setAnalyticsComponent] = useState<React.ComponentType | null>(null);
+
+  useEffect(() => {
+    // Only load Analytics if we're on Vercel (not localhost)
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isVercel = hostname.includes('vercel.app') || hostname.includes('vercel.com');
+    const isLocal = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+
+    if (isVercel && !isLocal) {
+      import("@vercel/analytics/react").then((module) => {
+        setAnalyticsComponent(() => module.Analytics);
+      }).catch(() => {
+        // Silently fail if analytics can't be loaded
+      });
+    }
+  }, []);
+
+  return AnalyticsComponent ? <AnalyticsComponent /> : null;
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -50,7 +67,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-        {isVercel && <Analytics />}
+        <ConditionalAnalytics />
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
